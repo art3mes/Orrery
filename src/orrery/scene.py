@@ -171,5 +171,24 @@ def line_radius_au(view_scale: float) -> float:
     return 0.004 * view_scale
 
 
+# The camera opens at 2.555 view_scale from the origin -- sqrt(2.2^2 + 1.3^2),
+# from the look_at that frames each preset -- so this is the constant above,
+# expressed against the one length that keeps changing.
+LINE_RADIUS_PER_DISTANCE = 0.004 / 2.555
+
+
+def line_radius_from_camera(distance_au: float) -> float:
+    """Thickness for orbit lines, from how far the camera is from what it sees.
+
+    ``view_scale`` is the framing a preset *opened* at, and it never changes
+    again; the camera moves the instant anyone scrolls. Sizing annotation off
+    the preset means a tube that is 0.2 au thick in the 52 au view stays 0.2 au
+    thick when you fly in to look at the Earth -- a fifth of the radius of the
+    orbit it is supposed to be marking, drawn as a doughnut you can lose a
+    planet inside. Annotation has to track the camera or it is not annotation.
+    """
+    return LINE_RADIUS_PER_DISTANCE * max(distance_au, 1e-6)
+
+
 def all_bodies() -> tuple[str, ...]:
     return ORDER

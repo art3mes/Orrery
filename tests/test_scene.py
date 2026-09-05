@@ -211,3 +211,33 @@ def test_the_slider_can_still_be_pushed_past_it():
     """
     assert not scene.sun_fits_inside_mercury(500.0)
     assert scene.display_radius_au("sun", 500.0) > scene.MERCURY_PERIHELION_AU
+
+
+# --- orbit lines are annotation, and have to keep behaving like it ----------
+
+
+def test_line_width_tracks_the_camera_not_the_preset():
+    """Fly in and the marking thins; that is what makes it a marking.
+
+    Sized off the preset instead, the 52 au framing's 0.21 au tube stayed 0.21
+    au after you flew in to look at the Earth -- a fifth of the radius of the
+    orbit it was marking, drawn as a doughnut with a planet lost inside it.
+    """
+    far = scene.line_radius_from_camera(133.0)
+    near = scene.line_radius_from_camera(5.0)
+    assert far / near == pytest.approx(133.0 / 5.0)
+    assert near < 0.01  # thinner than a hundredth of Earth's orbit
+
+
+def test_it_agrees_with_the_preset_at_the_distance_the_preset_opens_at():
+    """The two must not disagree on the first frame, or every view flickers
+    once as the camera tracker corrects a width that was already right."""
+    for preset in scene.VIEW_PRESETS.values():
+        opening_distance = preset.scale_au * np.hypot(2.2, 1.3)  # the look_at
+        assert scene.line_radius_from_camera(opening_distance) == pytest.approx(
+            scene.line_radius_au(preset.scale_au), rel=1e-3
+        )
+
+
+def test_a_camera_at_the_origin_does_not_divide_by_zero():
+    assert scene.line_radius_from_camera(0.0) > 0.0

@@ -85,6 +85,7 @@ class Orrery:
         self._planets: dict[str, object] = {}
         self._orbits: dict[str, object] = {}
         self._trails: dict[str, object] = {}
+        self._line_radius = scene.line_radius_au(self.view_scale)
         self._rings: dict[str, object] = {}
         self._sun = None
 
@@ -210,11 +211,32 @@ class Orrery:
 
     def _apply_radii(self) -> None:
         self._place_globes()
-        line = scene.line_radius_au(self.view_scale)
+        self._set_line_radius(scene.line_radius_au(self.view_scale))
+
+    def _set_line_radius(self, line: float) -> None:
+        self._line_radius = line
         for orbit in self._orbits.values():
             orbit.set_radius(line, relative=False)
         for path in self._trails.values():
             path.set_radius(line * 1.8, relative=False)
+
+    def track_camera(self) -> None:
+        """Rescale the orbit lines to however far away the camera now is.
+
+        Called every frame. Without it the lines keep the thickness the opening
+        framing gave them, and flying in from 52 au to look at the Earth leaves
+        a 0.2 au tube wrapped round a 1 au orbit.
+        """
+        import polyscope as ps
+
+        eye = np.asarray(ps.get_view_camera_parameters().get_position(), dtype=float)
+        distance = float(np.linalg.norm(eye - np.asarray(ps.get_view_center())))
+        wanted = scene.line_radius_from_camera(distance)
+
+        # Only when it has actually moved: eighteen curve networks a frame for
+        # a change nobody can see is not worth the redraw.
+        if abs(wanted - self._line_radius) > 0.02 * self._line_radius:
+            self._set_line_radius(wanted)
 
     def apply_view(self, name: str) -> None:
         """Reframe the scene, and resize spheres and lines to suit."""
@@ -344,6 +366,7 @@ class Orrery:
         import polyscope.imgui as psim
 
         self._frame += 1
+        self.track_camera()
         if self._screenshot_path and self._frame == self._screenshot_frame:
             ps.screenshot(self._screenshot_path, transparent_bg=False)
 

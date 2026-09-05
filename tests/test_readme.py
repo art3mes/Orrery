@@ -19,8 +19,8 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-SECTION = "## Using it"
-NEXT = "## What M0 measures"
+SECTION = "## Using it as a library"
+NEXT = "## How accurate is it"
 
 
 def recipes():

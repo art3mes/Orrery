@@ -35,7 +35,7 @@ into 3-D by three angles.
 That is the whole model. The interesting question is not whether it produces
 ellipses; it is *how wrong* the ellipses are, which is what M0 answers.
 
-## Status: complete, M0 to M5
+## Status: complete, M0 to M6
 
 | | | Gate | |
 |---|---|---|---|
@@ -45,16 +45,18 @@ ellipses; it is *how wrong* the ellipses are, which is what M0 answers.
 | **M3** | The view from Earth: light-time, aberration, parallax | Apparent places against Skyfield; transits timed from real sites | **passing, 4/4** |
 | **M4** | The Moon, and eclipses | Cone geometry; two solar eclipses and one lunar against *observed* circumstances; the saros | **passing, 4/4** |
 | **M5** | Textures, axial tilt, rotation, rings | Periods and obliquities against published; the analemma; the map's orientation; ring radii | **passing, 5/5** |
+| **M6** | The Moon, computed here | Meeus's worked example; DE440 over a century; what it costs an eclipse; the Moon's periods | **passing, 4/4** |
 
 ```bash
 pip install -e ".[truth,viz,dev]"
-python -m pytest                    # 316 tests, no network, ~45 s
+python -m pytest                    # 333 tests, no network, ~31 s
 python scripts/validate_m0.py       # positions
 python scripts/validate_m1.py       # the scene, checked with no window
 python scripts/validate_m2.py       # gravity  (~2.5 min; --quick halves it)
 python scripts/validate_m3.py       # apparent places
 python scripts/validate_m4.py       # eclipses
 python scripts/validate_m5.py       # orientation and rotation
+python scripts/validate_m6.py       # the Moon
 python scripts/demo_m0.py
 python scripts/demo_m1.py           # the viewer
 python scripts/demo_m2.py           # energy, and the missing 43 arcseconds
@@ -472,6 +474,52 @@ and the gate prints both numbers.
 
 Planet maps are from **Solar System Scope**, CC BY 4.0.
 
+## What M6 measures
+
+Through M5 the Moon came from DE440, which made M4's eclipses a test of shadow
+geometry sitting on somebody else's orbit — the last place in this project
+where ground truth was an *input* rather than the thing being measured.
+
+`lunar.py` closes that: the abridged ELP-2000/82, five fundamental angles, sixty
+periodic terms for longitude and distance and sixty more for latitude.
+
+| gate | result |
+|---|---|
+| Meeus's worked example | longitude, latitude and distance to **six decimal places** |
+| Against DE440, 1950–2050 | **3.12″ rms**, 15.5″ max; distance 3.0 km rms |
+| What it costs the 2024 eclipse | **3 km** of track, **0 s** of totality |
+| The Moon's periods | all four months, plus 18.61 and 8.85 years |
+
+The third one is the answer to the question the first two only gesture at.
+Three arcseconds is abstract; running M4's eclipse machinery on this Moon
+instead of DE440's moves the 2024 track by three kilometres and changes totality
+at Nazas by under a second. The abridged theory is good enough for the job it
+was built for.
+
+The fourth is the one worth looking at:
+
+```
+month                 ours   published   days
+tropical         27.321582   27.321582
+synodic          29.530589   29.530589
+anomalistic      27.554550   27.554550
+draconic         27.212221   27.212221
+sidereal         27.321662   27.321662
+
+nodes regress once in 18.61 years   (published 18.6)
+apsides turn once in   8.85 years   (published 8.85)
+```
+
+None of that is in the table. Every one is a difference between the rates of
+four angles. The tropical and sidereal months differ by 6.9 seconds, and that
+6.9 seconds is the equinox moving under the Moon at 50.3 arcsec a year and
+nothing else. The 18.61 years is why eclipse seasons drift, and why a saros is
+eighteen years and eleven days rather than a round number.
+
+Why the Moon needs sixty terms where a planet needs six: its largest periodic
+term is **6.29 degrees**. The Sun's is 1.9. Nothing else in the solar system is
+pulled about like this.
+
 ## What M0 already answers
 
 No graphics required:
@@ -529,7 +577,7 @@ scripts/
   demo_m4.py         an eclipse track drawn on the ground
   demo_m5.py         one body, close up, oriented for a date
 
-tests/               316 tests, offline, plus one network diff against JPL
+tests/               333 tests, offline, plus one network diff against JPL
 data/                fixtures, delta T, textures. See data/README.md
 docs/images/         the figures in this file, all reproducible by the demos
 ```
@@ -638,9 +686,10 @@ rate were fitted independently and imply periods differing by that much.
   falls back to Espenak & Meeus's polynomials if that file is absent. The
   polynomial was 6.2 s out by 2026 and 18.6 s by 2045; eclipse timing needed
   the real thing, which is why M4 depended on it.
-- **The Moon is DE440's, not this package's.** There is no lunar theory here.
-  M4 tests the shadow geometry, not an orbit — a truncated ELP-2000 would be the
-  next thing, gated against what M4 already produces.
+- **The lunar theory is abridged.** 120 terms against the full ELP-2000/82's
+  twenty thousand, which is 3″ rms and 15″ at worst. M4's eclipse gates still
+  run on DE440's Moon; M6 measures the difference rather than swapping it in,
+  so the eclipse numbers stay pinned to the best available orbit.
 - **Only the centre line, not the path limits.** The track drawn is where the
   shadow *axis* lands. The northern and southern limits of totality, and the
   width of the band, are not computed.

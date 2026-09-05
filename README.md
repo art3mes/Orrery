@@ -79,48 +79,8 @@ The extras are separable, and which you need depends on what you want to do:
 python -m pytest -m "not network"
 ```
 
-356 tests, about 45 seconds. One further test diffs the element table against
+367 tests, about 45 seconds. One further test diffs the element table against
 JPL's live web page and is excluded by that marker.
-
-**See something.**
-
-```bash
-python scripts/demo_m1.py
-```
-
-Drag to orbit, scroll to zoom. The panel has a date slider across the whole
-1850–2050 range, play/pause, a *focus* dropdown that locks the camera onto one
-body, and sliders for how much the spheres are exaggerated. They are exaggerated:
-at true scale, with Earth's whole orbit in frame, the Earth is about one pixel
-across. Positions are never exaggerated, and the factor is on screen next to the
-slider that sets it.
-
-```bash
-python scripts/demo_m1.py --date 2020-12-21   # the great conjunction
-python scripts/demo_m5.py --body saturn       # one body, close up, correctly tilted
-python scripts/demo_m4.py --date 2024-04-08   # an eclipse track drawn on the ground
-python scripts/demo_m3.py                     # light-time, and Mars going backwards
-python scripts/demo_m2.py                     # symplectic vs Runge-Kutta, and the missing 43″
-```
-
-**Run the gates.** These are the measurements the README quotes:
-
-```bash
-python scripts/validate_m0.py     # positions against DE440
-python scripts/validate_m1.py     # the scene and its events, with no window
-python scripts/validate_m2.py     # gravity   (~2.5 min; --quick halves it)
-python scripts/validate_m3.py     # apparent places
-python scripts/validate_m4.py     # eclipses
-python scripts/validate_m5.py     # orientation, rotation, rings
-python scripts/validate_m6.py     # the Moon
-```
-
-The **first** gate run downloads `de440s.bsp`, JPL's planetary ephemeris — 32 MB,
-once, into `data/`. After that everything is cached in `data/fixtures/`, which
-is committed, and `--offline` refuses to touch the network at all. Behind a
-TLS-inspecting proxy the download can fail certificate verification; the
-`truth` extra installs `truststore`, which defers to the OS certificate store
-and fixes it without weakening anything.
 
 ### Where the textures are
 
@@ -140,6 +100,60 @@ python -c "from orrery import globe; [globe.fetch_texture(b) for b in globe.TEXT
 ```
 
 Everything still runs without them — the globes just come out plain.
+
+## Run it
+
+One command. A date in, everything about that date out, then the 3-D view on
+the same date.
+
+```bash
+orrery 2027-08-02 --at delhi
+```
+
+```
+2027-08-02 00:00 TDB   --   as seen from New Delhi
+
+  body        RA            Dec         from Earth   from Sun   elongation
+  --------------------------------------------------------------------------
+  Sun         08h 46.2m   +17d 58.2m      1.0150          --           --
+  Mercury     08h 04.1m   +21d 21.6m      1.2443       0.308        10.5d
+  Venus       08h 36.0m   +19d 39.6m      1.7302       0.719         2.9d
+  Mars        12h 37.2m   -03d 51.5m      1.7815       1.564        60.9d
+  Jupiter     10h 13.7m   +11d 56.9m      6.3194       5.391        21.9d
+  Saturn      01h 45.9m   +08d 12.1m      9.0887       9.346       101.6d
+  Uranus      04h 28.2m   +21d 39.5m     19.8631      19.382        60.4d
+  Neptune     00h 24.8m   +01d 06.8m     29.3070      29.872       123.0d
+  Pluto       20h 36.5m   -23d 31.9m     34.8169      35.827       174.0d
+  Moon        08h 26.2m   +19d 40.0m      0.0024       1.013         5.0d
+
+  The Moon is new, 0% lit, 357,434 km away,
+  and 5.0 degrees from the Sun in the sky.
+
+  Solar eclipse from New Delhi: 8.2% of the Sun covered at 2027-08-02 11:00.
+  The centre of the shadow lands at +25.0, +33.6 at 2027-08-02 10:10.
+```
+
+Then the 3-D view opens on that date. Under a second, and nothing is
+downloaded — the positions come from this package's own orbits.
+
+```bash
+orrery                                  # today
+orrery 1969-07-20                       # any date from 1850 to 2050
+orrery "2024-04-08 18:17" --at mauna_kea
+orrery 2027-08-02 --at 30.04,31.24      # or your own latitude, longitude
+orrery 2026-09-06 --no-viewer           # text only, no window
+```
+
+`--at` takes `greenwich`, `mauna_kea`, `paranal`, `svalbard`, `delhi`, or any
+`lat,lon` pair. Without it, positions are geocentric — from the centre of the
+Earth, which is where almanacs quote them.
+
+In the viewer: drag to orbit, scroll to zoom. The panel has a date slider
+across the whole 1850–2050 range, play/pause, a *focus* dropdown that locks the
+camera onto one body, and sliders for how much the spheres are exaggerated.
+They are exaggerated: at true scale, with Earth's whole orbit in frame, the
+Earth is about one pixel across. Positions are never exaggerated, and the
+factor is on screen next to the slider that sets it.
 
 ## Using it as a library
 
@@ -301,6 +315,40 @@ typo in the table: they sit near a 5:2 resonance, and their mutual pull puts a
 term in their longitudes that oscillates over centuries. Elements that drift
 *linearly* cannot represent that, so the model eats the amplitude as error.
 
+### Running the gates yourself
+
+Every number in the table above is printed by one of these. They are slow on
+purpose — M2 integrates the solar system for a thousand years — and they are
+the only slow thing here; the app itself answers in under a second.
+
+```bash
+python scripts/validate_m0.py     # positions against DE440           ~20 s
+python scripts/validate_m1.py     # the scene and its events           ~15 s
+python scripts/validate_m2.py     # gravity, 1000 years              ~2.5 min
+python scripts/validate_m3.py     # apparent places                    ~30 s
+python scripts/validate_m4.py     # eclipses                           ~40 s
+python scripts/validate_m5.py     # orientation, rotation, rings       ~10 s
+python scripts/validate_m6.py     # the Moon                           ~25 s
+```
+
+The **first** run downloads `de440s.bsp`, JPL's planetary ephemeris — 32 MB,
+once, into `data/`. After that everything is cached in `data/fixtures/`, which
+is committed, and `--offline` refuses to touch the network at all. Behind a
+TLS-inspecting proxy the download can fail certificate verification; the
+`truth` extra installs `truststore`, which defers to the OS certificate store
+and fixes it without weakening anything.
+
+There are demos too, one per milestone, which show the working rather than the
+verdict:
+
+```bash
+python scripts/demo_m0.py    # positions, perihelion, oppositions, the conjunction
+python scripts/demo_m2.py    # symplectic vs Runge-Kutta, and the missing 43 arcsec
+python scripts/demo_m3.py    # how old the view is, and Mars going backwards
+python scripts/demo_m4.py    # an eclipse track drawn on the ground
+python scripts/demo_m5.py --body saturn    # one body, close up, correctly tilted
+```
+
 ## What M0 to M6 mean
 
 The project was built in seven steps and the scripts are named after them. It is
@@ -353,6 +401,7 @@ The short version. The full list, with measured costs, is in
 
 ```
 src/orrery/          the model. numpy only; nothing here imports Skyfield
+  __main__.py        the `orrery` command: a date in, a report and a window out
   times.py           calendar <-> Julian date; J2000 and the century
   elements.py        the JPL element table, verbatim, plus drift to any epoch
   kepler.py          Kepler's equation; elements <-> position, velocity, orbit ring
@@ -386,7 +435,7 @@ scripts/
   demo_m4.py         an eclipse track drawn on the ground
   demo_m5.py         one body, close up, oriented for a date
 
-tests/               356 tests, offline, plus one network diff against JPL
+tests/               367 tests, offline, plus one network diff against JPL
 data/                fixtures, delta T, textures. See data/README.md
 docs/
   milestones.md      what each gate asks and what it measured

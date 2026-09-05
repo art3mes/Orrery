@@ -20,7 +20,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from orrery import elements, frames, kepler, times  # noqa: E402
+from orrery import elements, events, frames, kepler, times  # noqa: E402
 
 
 def show_today() -> None:
@@ -92,14 +92,20 @@ def show_great_conjunction() -> None:
         kepler.position("jupiter", days) - earth,
         kepler.position("saturn", days) - earth,
     )
-    index = int(np.argmin(separation))
-    closest = separation[index] / 60.0
+    # Through the same finder M1's gate uses, refinement included. The grid is
+    # 7.2 minutes wide and a raw argmin is quantised to it; taking the vertex of
+    # the fitted parabola instead is what lets this agree with the gate to the
+    # minute rather than to the sample.
+    when, closest_arcsec = min(
+        events.find_extrema(days, separation, kind="min"), key=lambda pair: pair[1]
+    )
+    closest = closest_arcsec / 60.0
 
-    hours_late = (days[index] - times.jd(2020, 12, 21, 18, 14)) * 24.0
+    hours_late = (when - times.jd(2020, 12, 21, 18, 14)) * 24.0
 
     print("\nJupiter-Saturn great conjunction, December 2020")
     print(
-        f"  closest      {times.isoformat(days[index])}"
+        f"  closest      {times.isoformat(when)}"
         f"   ({hours_late:+.1f} h vs DE440)"
     )
     print(f"  separation   {closest:.3f} arcmin   (DE440: 6.104 arcmin)")
@@ -111,8 +117,8 @@ def show_great_conjunction() -> None:
         "  most of the error cancels in the difference between them.\n"
         "\n  The date is the weaker number here, not the stronger one: at closest\n"
         "  approach the separation curve is nearly flat, so Saturn's 2.5 arcmin\n"
-        "  moves the minimum by ten hours. M1 should gate conjunctions to about\n"
-        "  a day, and should not claim arcminute separations."
+        "  moves the minimum by ten hours. M1 gates conjunctions to a day for\n"
+        "  that reason, and claims nothing about the separation."
     )
 
 

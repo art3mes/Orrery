@@ -21,6 +21,10 @@ dependencies = [
     "numpy>=1.23",
 ]
 
+[project.scripts]
+# One command: a date in, everything about that date out, then the 3-D view.
+orrery = "orrery.__main__:main"
+
 [project.optional-dependencies]
 # Ground truth for the M0 gate. Never imported by src/orrery.
 truth = [

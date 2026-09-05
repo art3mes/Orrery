@@ -442,12 +442,17 @@ class Orrery:
         frames: int | None = None,
         screenshot: str | None = None,
         backend: str = "",
+        focus: str | None = None,
     ) -> None:
         import polyscope as ps
 
         ps.init(backend) if backend else ps.init()
         self.build()
         ps.set_user_callback(self.gui)
+
+        # After build(), because focusing needs the meshes it registers.
+        if focus is not None:
+            self.focus_on(focus)
 
         # Screenshots are taken from inside the callback, not after show()
         # returns: by then polyscope has torn the window down and there is

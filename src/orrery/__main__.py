@@ -187,6 +187,11 @@ def main(argv=None) -> int:
         "--view", default="inner", choices=("inner", "planets", "all"),
         help="opening framing of the 3-D view",
     )
+    parser.add_argument(
+        "--focus", default=None, metavar="BODY",
+        help="open zoomed in on one body at its true shape: sun, "
+             + ", ".join(elements.BODIES) + ". Saturn and Uranus bring rings.",
+    )
     args = parser.parse_args(argv)
 
     if args.date is None:
@@ -228,7 +233,11 @@ def main(argv=None) -> int:
         print("  (the 3-D view needs polyscope: pip install -e \".[viz]\")")
         return 0
 
-    Orrery(jd_tdb, view=args.view).run()
+    focus = None
+    if args.focus:
+        focus = "sun" if args.focus.lower() == "sun" else elements.canonical(args.focus)
+
+    Orrery(jd_tdb, view=args.view).run(focus=focus)
     return 0
 
 

@@ -94,3 +94,30 @@ def test_standing_somewhere_changes_the_answer():
     from_a_place = run("2026-09-06", "paranal")
     assert geocentric != from_a_place
     assert "Paranal" in from_a_place
+
+
+# --- the flags that reach the viewer ----------------------------------------
+
+
+def test_focus_accepts_the_names_the_rest_of_the_package_accepts():
+    """`--focus earth` has to mean the same body as `position("earth", ...)`.
+
+    Which is the Earth-Moon barycentre, because that is what the element table
+    describes. Two naming schemes in one program is one too many.
+    """
+    from orrery import elements
+
+    assert elements.canonical("earth") == "embary"
+    assert elements.canonical("SATURN") == "saturn"
+    with pytest.raises(KeyError):
+        elements.canonical("vulcan")
+
+
+def test_the_viewer_takes_a_focus_argument():
+    """Wired through, so `orrery --focus saturn` opens on Saturn rather than
+    opening on the system and waiting for a click."""
+    import inspect
+
+    from orrery.view import Orrery
+
+    assert "focus" in inspect.signature(Orrery.run).parameters

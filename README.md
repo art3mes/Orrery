@@ -79,7 +79,7 @@ The extras are separable, and which you need depends on what you want to do:
 python -m pytest -m "not network"
 ```
 
-367 tests, about 45 seconds. One further test diffs the element table against
+369 tests, about 45 seconds. One further test diffs the element table against
 JPL's live web page and is excluded by that marker.
 
 ### Where the textures are
@@ -142,6 +142,7 @@ orrery 1969-07-20                       # any date from 1850 to 2050
 orrery "2024-04-08 18:17" --at mauna_kea
 orrery 2027-08-02 --at 30.04,31.24      # or your own latitude, longitude
 orrery 2026-09-06 --no-viewer           # text only, no window
+orrery --focus saturn                   # open zoomed in on one body
 ```
 
 `--at` takes `greenwich`, `mauna_kea`, `paranal`, `svalbard`, `delhi`, or any
@@ -150,7 +151,8 @@ Earth, which is where almanacs quote them.
 
 In the viewer: drag to orbit, scroll to zoom. The panel has a date slider
 across the whole 1850–2050 range, play/pause, a *focus* dropdown that locks the
-camera onto one body, and sliders for how much the spheres are exaggerated.
+camera onto one body at its true shape — Saturn and Uranus bring their rings,
+and `--focus` opens there directly — and sliders for how much the spheres are exaggerated.
 They are exaggerated: at true scale, with Earth's whole orbit in frame, the
 Earth is about one pixel across. Positions are never exaggerated, and the
 factor is on screen next to the slider that sets it.
@@ -435,7 +437,7 @@ scripts/
   demo_m4.py         an eclipse track drawn on the ground
   demo_m5.py         one body, close up, oriented for a date
 
-tests/               367 tests, offline, plus one network diff against JPL
+tests/               369 tests, offline, plus one network diff against JPL
 data/                fixtures, delta T, textures. See data/README.md
 docs/
   milestones.md      what each gate asks and what it measured

@@ -199,10 +199,21 @@ def obliquity_degrees(body: str, jd_tdb) -> np.ndarray:
 
     Over 90 degrees means the body turns the other way round, which is why
     Venus reads 177 and Uranus 98 rather than 3 and 82.
+
+    The Sun has no orbit to be measured against, so its tilt is taken to the
+    ecliptic pole instead. That is the published 7.25 degrees, and it is a
+    different question wearing the same name.
     """
+    from .frames import ecliptic_to_equatorial as _to_equatorial
     from .kepler import state
 
-    orbit_body = "embary" if _key(body) in ("embary", "moon") else _key(body)
+    key = _key(body)
+    if key == "sun":
+        ecliptic_pole = _to_equatorial(np.array([0.0, 0.0, 1.0]))
+        cosine = np.sum(spin_axis(body, jd_tdb) * ecliptic_pole, axis=-1)
+        return np.degrees(np.arccos(np.clip(cosine, -1.0, 1.0)))
+
+    orbit_body = "embary" if key in ("embary", "moon") else key
     position, velocity = state(orbit_body, jd_tdb)
     normal = np.cross(position, velocity)
     normal = normal / np.linalg.norm(normal, axis=-1, keepdims=True)

@@ -135,6 +135,20 @@ def test_the_sub_solar_longitude_is_near_greenwich_at_noon():
     assert abs(offset) < 4.5
 
 
+def test_the_sun_is_tilted_to_the_ecliptic_not_to_an_orbit():
+    """The Sun has no orbit here, so "obliquity" has to mean something else.
+
+    Its equator is tilted 7.25 degrees to the ecliptic. Asking the general code
+    path for it used to raise, because it went looking for the Sun's orbital
+    elements, and the viewer's focus mode was the first thing to ask.
+    """
+    assert float(rotation.obliquity_degrees("sun", JD)) == pytest.approx(7.25, abs=0.05)
+
+
+def test_the_sun_turns_once_in_25_days():
+    assert rotation.rotation_period_days("sun") == pytest.approx(25.38, abs=0.05)
+
+
 def test_unknown_bodies_are_rejected():
     with pytest.raises(KeyError):
         rotation.pole("planet nine", JD)

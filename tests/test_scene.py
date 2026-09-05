@@ -103,7 +103,20 @@ def test_trail_needs_two_points():
 
 
 def test_unexaggerated_radius_is_the_real_radius():
-    assert scene.display_radius_au("embary", 1.0) * kepler.AU_KM == pytest.approx(6371.0)
+    assert scene.display_radius_au("embary", 1.0) * kepler.AU_KM == pytest.approx(
+        6378.137
+    )
+
+
+def test_the_two_modules_agree_on_the_size_of_the_earth():
+    """They did not. scene had the mean radius, observer the equatorial one.
+
+    Six kilometres apart, invisible in every picture, and enough to give the
+    Earth two thirds of its real flattening.
+    """
+    from orrery import observer
+
+    assert scene.RADIUS_KM["embary"] == pytest.approx(observer.EARTH_RADIUS_KM)
 
 
 def test_exaggeration_is_linear_and_so_preserves_size_ratios():

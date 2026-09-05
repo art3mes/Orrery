@@ -44,11 +44,11 @@ ellipses; it is *how wrong* the ellipses are, which is what M0 answers.
 | **M2** | Real gravity: mutual attraction, symplectic integration | Conservation over 1000 yr; 50-yr drift vs DE440; Mercury's perihelion | **passing, 3/3** |
 | **M3** | The view from Earth: light-time, aberration, parallax | Apparent places against Skyfield; transits timed from real sites | **passing, 4/4** |
 | **M4** | The Moon, and eclipses | Cone geometry; two solar eclipses and one lunar against *observed* circumstances; the saros | **passing, 4/4** |
-| **M5** | Textures, axial tilt, rotation | Periods and obliquities against published; the analemma; the map's orientation | **passing, 4/4** |
+| **M5** | Textures, axial tilt, rotation, rings | Periods and obliquities against published; the analemma; the map's orientation; ring radii | **passing, 5/5** |
 
 ```bash
 pip install -e ".[truth,viz,dev]"
-python -m pytest                    # 271 tests, no network, ~41 s
+python -m pytest                    # 316 tests, no network, ~45 s
 python scripts/validate_m0.py       # positions
 python scripts/validate_m1.py       # the scene, checked with no window
 python scripts/validate_m2.py       # gravity  (~2.5 min; --quick halves it)
@@ -437,6 +437,7 @@ planet.
 | Obliquities, from the poles and M0's orbits | within 0.01° for 8 of 9 |
 | The analemma | ±23.44° latitude, 30.6 min of equation of time, all four season dates exact |
 | The map's orientation | 10/10 known coastlines land or sea as they should |
+| Shape | flattening derived from published radii; ring edges are published radii |
 
 The analemma is the one that matters. The rotation table contains a pole and an
 angle that ticks; it knows nothing about seasons. Track the sub-solar point at
@@ -444,6 +445,30 @@ noon UT for a year and out falls the Sun's declination reaching exactly the
 obliquity, the equation of time spanning 30.6 minutes against a published 30.5,
 and the solstices and equinoxes on 21 June, 21 December, 20 March and
 23 September 2026 — the right days.
+
+The viewer has a **focus** mode: pick a body and the camera goes to it at true
+size, with the time scrubber still running, so you can watch it turn. The
+focused body is drawn at the origin rather than at its real position — a planet
+is 4 × 10⁻⁵ au across sitting 1 au out, and a camera close enough to read the
+map would be resolving one part in 25 000 of the scene, which the depth buffer
+will not do.
+
+Planets are flattened by their own spin, from published polar and equatorial
+radii: 0.098 for Saturn, 0.065 for Jupiter, 0.0034 for the Earth. The squash is
+applied *before* the rotation so it follows the tilt — doing it after leaves
+every planet flattened about the ecliptic pole, which looks plausible until
+Saturn is squashed the wrong way relative to its own rings.
+
+Three ring systems are drawn, every edge a published radius: Saturn's C, B,
+Cassini division and A; Jupiter's halo, main and two gossamer rings; and all ten
+of Uranus's, by name, from **6** out to **ε**. Geometry is emitted only where a
+ring actually is — Uranus's rings cover under 2% of their span, so one disc plus
+opacity would be 98% empty and the radial samples would land between the rings
+and miss them entirely.
+
+Uranus's rings are drawn at least 250 km wide against a real narrowest of 2 km,
+which is a sixtieth of a pixel. That is the same bargain as the planet radii,
+and the gate prints both numbers.
 
 Planet maps are from **Solar System Scope**, CC BY 4.0.
 
@@ -504,7 +529,7 @@ scripts/
   demo_m4.py         an eclipse track drawn on the ground
   demo_m5.py         one body, close up, oriented for a date
 
-tests/               290 tests, offline, plus one network diff against JPL
+tests/               316 tests, offline, plus one network diff against JPL
 data/                fixtures, delta T, textures. See data/README.md
 docs/images/         the figures in this file, all reproducible by the demos
 ```

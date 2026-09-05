@@ -77,9 +77,15 @@ class Orrery:
         self.show_orbits = True
         self.show_trails = True
 
+        # Focus mode: one body, at true size, at the origin. None means the
+        # ordinary solar-system view.
+        self.focus: str | None = None
+        self.focus_from_sun = True
+
         self._planets: dict[str, object] = {}
         self._orbits: dict[str, object] = {}
         self._trails: dict[str, object] = {}
+        self._rings: dict[str, object] = {}
         self._sun = None
 
         self._frame = 0
@@ -94,6 +100,8 @@ class Orrery:
         ps.set_up_dir("z_up")
         ps.set_ground_plane_mode("none")
         ps.set_background_color((0.02, 0.02, 0.05))
+        # Rings need real per-vertex alpha, not a premultiplied stand-in.
+        ps.set_transparency_mode("pretty")
         # Pluto's aphelion is 49 au out. Without a fixed box, polyscope reframes
         # the whole scene whenever a trail grows, and the view jumps.
         ps.set_bounding_box((-52.0, -52.0, -52.0), (52.0, 52.0, 52.0))
@@ -120,6 +128,24 @@ class Orrery:
         for body in ORDER:
             label = body.capitalize()
             self._planets[body] = sphere(label, body)
+
+            if globe.has_rings(body):
+                nodes, ring_faces, radial, opacity = globe.ring_mesh(body)
+                rings = ps.register_surface_mesh(f"{label} rings", nodes, ring_faces)
+                rings.set_material("flat")  # rings are lit from every side at once
+                rings.set_back_face_policy("identical")
+                system = globe.RING_SYSTEMS[body]
+                profile = globe.ring_profile(body) if system.texture else None
+                if profile is not None:
+                    # Saturn has a real map, so take both colour and opacity
+                    # from it rather than from the coarse band table.
+                    colour, opacity = globe.ring_samples(profile, radial)
+                    rings.add_color_quantity("rings", colour, enabled=True)
+                else:
+                    rings.set_color(system.colour)
+                rings.add_scalar_quantity("opacity", opacity, enabled=False)
+                rings.set_transparency_quantity("opacity")
+                self._rings[body] = rings
 
             orbit = ps.register_curve_network(
                 f"{label} orbit",
@@ -149,6 +175,19 @@ class Orrery:
 
     def _place_globes(self) -> None:
         """Rotation, size and position, as one transform per body."""
+        if self.focus is not None:
+            # One body, true size, at the origin. Putting it at the origin
+            # rather than at its real position is not cosmetic: a planet is
+            # 4e-5 au across and sits 1 au out, so a camera close enough to see
+            # the map would be resolving one part in 25000 of the scene, and
+            # both the depth buffer and float32 give up long before that.
+            mesh = self._sun if self.focus == "sun" else self._planets[self.focus]
+            matrix = globe.orientation(self.focus, self.jd, 1.0, np.zeros(3))
+            mesh.set_transform(matrix)
+            if self.focus in self._rings:
+                self._rings[self.focus].set_transform(matrix)
+            return
+
         self._sun.set_transform(
             globe.orientation(
                 "sun", self.jd,
@@ -157,13 +196,17 @@ class Orrery:
             )
         )
         for body, mesh in self._planets.items():
-            mesh.set_transform(
-                globe.orientation(
-                    body, self.jd,
-                    scene.display_radius_au(body, self.planet_exaggeration),
-                    position(body, self.jd),
-                )
+            matrix = globe.orientation(
+                body, self.jd,
+                scene.display_radius_au(body, self.planet_exaggeration),
+                position(body, self.jd),
             )
+            mesh.set_transform(matrix)
+            if body in self._rings:
+                # The rings lie at z = 0 in body coordinates, so the same
+                # transform carries them, tilt and all -- and the polar squash,
+                # being along z, leaves that plane untouched.
+                self._rings[body].set_transform(matrix)
 
     def _apply_radii(self) -> None:
         self._place_globes()
@@ -189,15 +232,97 @@ class Orrery:
         ps.look_at((0.0, -2.2 * s, 1.3 * s), (0.0, 0.0, 0.0))
 
     def _apply_visibility(self) -> None:
+        if self.focus is not None:
+            # Everything else is either off-screen or a subpixel speck, and the
+            # orbit rings would be straight lines through the frame.
+            self._sun.set_enabled(self.focus == "sun")
+            for body in ORDER:
+                self._planets[body].set_enabled(body == self.focus)
+                self._orbits[body].set_enabled(False)
+                self._trails[body].set_enabled(False)
+                if body in self._rings:
+                    self._rings[body].set_enabled(body == self.focus)
+            return
+
+        self._sun.set_enabled(True)
         for body in ORDER:
             shown = body in self.visible
             self._planets[body].set_enabled(shown)
             self._orbits[body].set_enabled(shown and self.show_orbits)
             self._trails[body].set_enabled(shown and self.show_trails)
+            if body in self._rings:
+                self._rings[body].set_enabled(shown)
+
+    # -- focus ---------------------------------------------------------------
+
+    def focus_on(self, body: str | None) -> None:
+        """Fly to one body at its true size, or back out to the system."""
+        import polyscope as ps
+
+        if body is not None and body != "sun" and body not in self._planets:
+            raise ValueError(f"cannot focus on {body!r}")
+        self.focus = body
+
+        if body is None:
+            ps.set_bounding_box((-52.0, -52.0, -52.0), (52.0, 52.0, 52.0))
+            self.apply_view(self.view_name)
+            return
+
+        # The sphere is a unit sphere in focus mode, so the scene is a few
+        # radii across and the near and far planes have something sane to work
+        # with.
+        reach = (globe.ring_span(body)[1] * 1.25) if globe.has_rings(body) else 1.6
+        ps.set_bounding_box((-reach,) * 3, (reach,) * 3)
+        self._place_globes()
+        self._apply_visibility()
+        self.aim_camera()
+
+    def aim_camera(self) -> None:
+        """Point the camera at the focused body, from the Sun or from the side."""
+        import polyscope as ps
+
+        if self.focus is None:
+            return
+        if self.focus_from_sun and self.focus != "sun":
+            toward_sun = -position(self.focus, self.jd)
+            toward_sun = toward_sun / np.linalg.norm(toward_sun)
+            reach = 3.2 * self._frame_radius()
+            ps.look_at(tuple(reach * toward_sun), (0.0, 0.0, 0.0))
+        else:
+            reach = self._frame_radius()
+            ps.look_at((3.0 * reach, -1.6 * reach, 1.2 * reach), (0.0, 0.0, 0.0))
+
+    def _frame_radius(self) -> float:
+        """How far out the camera has to sit to fit the body and its rings."""
+        if self.focus and globe.has_rings(self.focus):
+            return globe.ring_span(self.focus)[1] * 0.85
+        return 1.0
+
+    def focus_report(self) -> list[str]:
+        """A line or two about what is being looked at."""
+        from . import frames, rotation
+
+        if self.focus is None:
+            return []
+        body = self.focus
+        lines = [
+            f"{body}: tilt {float(rotation.obliquity_degrees(body, self.jd)):.1f} deg,"
+            f" day {abs(rotation.rotation_period_days(body)) * 24:.2f} h"
+        ]
+        if body != "sun":  # the Sun does not have the Sun overhead anywhere
+            toward_sun = frames.ecliptic_to_equatorial(-position(body, self.jd))
+            latitude, longitude = rotation.surface_point(body, self.jd, toward_sun)
+            lines.append(
+                f"sun overhead at {float(latitude):+.1f} lat,"
+                f" {float(longitude):.1f} east lon"
+            )
+        return lines
 
     def refresh_positions(self) -> None:
         """Move everything to the current date. Node counts never change."""
         self._place_globes()
+        if self.focus is not None:
+            return  # the rings and trails are hidden; do not pay to move them
         for body in self._planets:
             self._orbits[body].update_node_positions(
                 scene.orbit_loop(body, self.jd, self.orbit_samples)
@@ -236,9 +361,32 @@ class Orrery:
 
         for name in scene.VIEW_PRESETS:
             if psim.Button(name):
+                self.focus_on(None)
                 self.apply_view(name)
             psim.SameLine()
         psim.TextUnformatted("")
+
+        # Focus: leave the solar system view and go and look at one body at its
+        # real size. At system scale the Earth is fourteen pixels across, so the
+        # maps are there but there is nothing to see.
+        choices = ["-- system --", "sun", *ORDER]
+        current = 0 if self.focus is None else choices.index(self.focus)
+        changed_focus, picked = psim.Combo("focus", current, choices)
+        if changed_focus:
+            self.focus_on(None if picked == 0 else choices[picked])
+
+        if self.focus is not None:
+            if psim.Button("re-aim"):
+                self.aim_camera()
+            psim.SameLine()
+            flipped, self.focus_from_sun = psim.Checkbox(
+                "lit face", self.focus_from_sun
+            )
+            if flipped:
+                self.aim_camera()
+            for line in self.focus_report():
+                psim.TextUnformatted(line)
+            psim.Separator()
 
         if psim.Button("play" if not self.playing else "pause"):
             self.playing = not self.playing

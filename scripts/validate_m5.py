@@ -21,6 +21,8 @@ table they came from.
    any of that.
 4. **The map is on the right way round.** Sample the Earth's texture where the
    mesh says a coordinate is, and check ocean is ocean.
+5. **Shape.** Flattening derived from the published radii, and Saturn's rings
+   where the geometry says they go.
 
 Usage::
 
@@ -71,6 +73,18 @@ PUBLISHED_OBLIQUITY = {
 # package omits, so its obliquity is allowed to sit further out than the rest.
 OBLIQUITY_TOLERANCE = 0.05
 NEPTUNE_TOLERANCE = 0.6
+
+# Flattening, 1 - polar/equatorial. A tenth for Saturn, and zero for the rocky
+# bodies at this precision.
+PUBLISHED_FLATTENING = {
+    "venus": 0.0,
+    "embary": 1 / 298.257223563,
+    "mars": 0.00589,
+    "jupiter": 0.06487,
+    "saturn": 0.09796,
+    "uranus": 0.02293,
+    "neptune": 0.01708,
+}
 
 # Known geography, to check the map is not rotated or flipped.
 COASTLINES = [
@@ -259,6 +273,56 @@ def gate_map(*, offline: bool) -> Check:
     )
 
 
+def gate_shape() -> Check:
+    lines = [f"  {'body':<9}{'flattening':>12}{'published':>12}"]
+    passed = True
+    for body, published in PUBLISHED_FLATTENING.items():
+        ours = globe.flattening(body)
+        passed = passed and abs(ours - published) < 2e-5
+        lines.append(f"  {body:<9}{ours:12.5f}{published:12.5f}")
+
+    # The squash has to follow the tilt, not the scene. Squashing after the
+    # rotation instead of before leaves every planet flattened about the
+    # ecliptic pole, which looks fine until you notice Saturn is squashed the
+    # wrong way relative to its own rings.
+    matrix = globe.orientation("saturn", times.jd(2026, 9, 3), 1.0, np.zeros(3))
+    short = matrix[:3, 2] / np.linalg.norm(matrix[:3, 2])
+    pole = frames.equatorial_to_ecliptic(rotation.pole("saturn", times.jd(2026, 9, 3)))
+    aligned = abs(float(short @ pole))
+    passed = passed and aligned > 1 - 1e-9
+
+    lines += ["", f"  the short axis lies along Saturn's own pole to {1 - aligned:.1e}", ""]
+    lines.append(f"  {'rings':<9}{'span (R)':>14}{'faces':>8}{'named':>7}{'opacity':>10}")
+
+    for body in ("jupiter", "saturn", "uranus"):
+        vertices, faces, _, opacity = globe.ring_mesh(body)
+        inner, outer = globe.ring_span(body)
+        system = globe.RING_SYSTEMS[body]
+
+        flat = bool(np.all(vertices[:, 2] == 0.0))
+        passed = passed and flat and inner > 1.0
+        lines.append(
+            f"  {body:<9}{inner:6.2f}-{outer:<7.2f}{len(faces):8d}"
+            f"{len(system.bands):7d}{opacity.min():5.2f}-{opacity.max():<5.2f}"
+        )
+
+    lines += [
+        "",
+        "  every ring edge above is a published radius. Geometry is emitted only",
+        "  where a ring is, so Uranus's ten hairlines are ten annuli and not one",
+        "  disc that is 98% empty.",
+    ]
+
+    narrow = globe.RING_SYSTEMS["uranus"]
+    lines.append(
+        f"  Uranus's rings are drawn at least {narrow.minimum_width_km:.0f} km wide;"
+        f" the narrowest is really"
+        f" {min(b.outer_km - b.inner_km for b in narrow.bands):.0f} km,"
+        " a sixtieth of a pixel"
+    )
+    return Check("shape: flattening and rings", passed, lines)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--offline", action="store_true")
@@ -270,6 +334,7 @@ def main() -> int:
         gate_obliquities(),
         gate_analemma(),
         gate_map(offline=args.offline),
+        gate_shape(),
     ]
     for check in checks:
         print(f"  [{'ok' if check.passed else 'FAIL'}]  {check.name}")

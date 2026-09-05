@@ -5,7 +5,7 @@ party data, which carries its own terms.
 
 ## Bundled in this repository
 
-**Planet and moon maps** — `data/textures/*.jpg`
+**Planet, moon and ring maps** — `data/textures/*.jpg`, `*.png`
 Solar System Scope, <https://www.solarsystemscope.com/textures/>,
 licensed **CC BY 4.0** (<https://creativecommons.org/licenses/by/4.0/>).
 

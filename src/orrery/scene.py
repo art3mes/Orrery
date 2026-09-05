@@ -30,7 +30,10 @@ RADIUS_KM = {
     "sun": 695700.0,
     "mercury": 2439.7,
     "venus": 6051.8,
-    "embary": 6371.0,  # Earth's radius; the barycentre has none of its own
+    # WGS84 equatorial, matching observer.EARTH_RADIUS_KM. It was 6371, the
+    # *mean* radius, which is a different number and made the Earth come out
+    # 0.00224 flattened instead of 0.00335.
+    "embary": 6378.137,  # the barycentre has no radius of its own
     "mars": 3396.2,
     "jupiter": 71492.0,
     "saturn": 60268.0,

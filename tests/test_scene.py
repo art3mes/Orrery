@@ -178,3 +178,36 @@ def test_the_scrubber_counts_days_for_a_reason():
 
     assert float32_step(jd) == pytest.approx(0.25)
     assert float32_step(view.jd_to_day(jd)) < 12 / (24 * 60)
+
+
+# --- the drawn Sun ----------------------------------------------------------
+
+
+def test_no_preset_opens_on_a_picture_that_is_not_true():
+    """Every framing has to satisfy the check the viewer itself applies.
+
+    Two of the three used to fail it. The viewer opened at 300x and 500x, put
+    the drawn Sun at 1.4 and 2.3 au, swallowed Mercury's orbit and Venus's, and
+    printed a line in its own status panel saying so. A caption does not undo a
+    picture -- a reader believes what they can see first.
+    """
+    for name, preset in scene.VIEW_PRESETS.items():
+        assert scene.sun_fits_inside_mercury(preset.sun_exaggeration), name
+
+
+def test_the_ceiling_is_where_the_sun_reaches_mercury():
+    """66, and it follows from two radii rather than from taste."""
+    ceiling = scene.largest_honest_sun()
+    assert ceiling == pytest.approx(66.1, abs=0.1)
+    assert scene.sun_fits_inside_mercury(ceiling * 0.999)
+    assert not scene.sun_fits_inside_mercury(ceiling * 1.001)
+
+
+def test_the_slider_can_still_be_pushed_past_it():
+    """Being honest by default is not the same as forbidding the exaggeration.
+
+    Somebody framing all 52 au wants a Sun they can see, and the viewer will
+    draw one -- and say what it costs, which is the whole difference.
+    """
+    assert not scene.sun_fits_inside_mercury(500.0)
+    assert scene.display_radius_au("sun", 500.0) > scene.MERCURY_PERIHELION_AU

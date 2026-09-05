@@ -74,10 +74,23 @@ def display_radius_au(body: str, exaggeration: float) -> float:
     return RADIUS_KM[key] / AU_KM * exaggeration
 
 
+MERCURY_PERIHELION_AU = 0.30750  # a(1 - e) at J2000
+
+
 def sun_fits_inside_mercury(exaggeration: float) -> bool:
     """Would the drawn Sun stay clear of Mercury's closest approach?"""
-    mercury_perihelion = 0.30750  # au, a(1 - e) at J2000
-    return display_radius_au("sun", exaggeration) < mercury_perihelion
+    return display_radius_au("sun", exaggeration) < MERCURY_PERIHELION_AU
+
+
+def largest_honest_sun() -> float:
+    """The most the Sun can be exaggerated before it eats Mercury's orbit.
+
+    66, as it happens: the Sun's radius is 0.00465 au and Mercury comes within
+    0.3075. Past this the picture starts asserting something false -- that
+    Mercury's orbit is inside the Sun -- and no caption undoes that, because a
+    reader believes what a picture shows before they read the label.
+    """
+    return MERCURY_PERIHELION_AU * AU_KM / RADIUS_KM["sun"]
 
 
 def orbit_loop(body: str, jd_tdb: float, samples: int = 512) -> np.ndarray:
@@ -132,10 +145,18 @@ class ViewPreset:
     bodies: tuple[str, ...]
 
 
+# The wide framings used to open at 300x and 500x, which put the drawn Sun at
+# 1.4 and 2.3 au -- past Mercury, past Venus, and most of the way past the
+# Earth. It looked better and it was not true, and the viewer announced as much
+# in its own status line on startup. They open at the honest ceiling now; the
+# slider still runs to 1000x for anyone who wants the Sun visible from Pluto,
+# and the warning then fires as a consequence of asking rather than by default.
+_HONEST_SUN = float(int(largest_honest_sun()))  # 66
+
 VIEW_PRESETS = {
     "inner": ViewPreset(2.0, 1000.0, 30.0, ORDER[:4]),
-    "planets": ViewPreset(32.0, 1500.0, 300.0, ORDER[:8]),
-    "all": ViewPreset(52.0, 3000.0, 500.0, ORDER),
+    "planets": ViewPreset(32.0, 1500.0, _HONEST_SUN, ORDER[:8]),
+    "all": ViewPreset(52.0, 3000.0, _HONEST_SUN, ORDER),
 }
 
 

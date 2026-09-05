@@ -1,0 +1,63 @@
+{
+  "grid": {
+    "start": 1850,
+    "end": 2050,
+    "dates": 2001
+  },
+  "results": {
+    "mercury": {
+      "max_pos_km": 6768.391285153993,
+      "rms_pos_km": 2057.0384566435646,
+      "max_helio_arcsec": 30.340897570069735,
+      "max_sky_arcsec": 35.43106613752936
+    },
+    "venus": {
+      "max_pos_km": 14846.699178857909,
+      "rms_pos_km": 6472.12547419782,
+      "max_helio_arcsec": 28.201639787607398,
+      "max_sky_arcsec": 73.51664050342983
+    },
+    "embary": {
+      "max_pos_km": 16720.656759743528,
+      "rms_pos_km": 7009.188248692957,
+      "max_helio_arcsec": 22.74936179110026,
+      "max_sky_arcsec": NaN
+    },
+    "mars": {
+      "max_pos_km": 100729.44692989657,
+      "rms_pos_km": 35637.433225323366,
+      "max_helio_arcsec": 99.78879238445063,
+      "max_sky_arcsec": 210.94363187961818
+    },
+    "jupiter": {
+      "max_pos_km": 1863299.3239260553,
+      "rms_pos_km": 832425.784896213,
+      "max_helio_arcsec": 516.2895132403628,
+      "max_sky_arcsec": 631.1042203342579
+    },
+    "saturn": {
+      "max_pos_km": 4976703.883667514,
+      "rms_pos_km": 2691028.013267587,
+      "max_helio_arcsec": 738.9222457041084,
+      "max_sky_arcsec": 829.009252720971
+    },
+    "uranus": {
+      "max_pos_km": 1681318.0270878938,
+      "rms_pos_km": 970602.7425151372,
+      "max_helio_arcsec": 121.6396740503778,
+      "max_sky_arcsec": 126.51022378226003
+    },
+    "neptune": {
+      "max_pos_km": 1606317.3040676638,
+      "rms_pos_km": 903957.4933418316,
+      "max_helio_arcsec": 59.970169093847986,
+      "max_sky_arcsec": 61.03290196040994
+    },
+    "pluto": {
+      "max_pos_km": 1570281.2165967852,
+      "rms_pos_km": 894988.0525587681,
+      "max_helio_arcsec": 58.287154045858884,
+      "max_sky_arcsec": 59.46982110137374
+    }
+  }
+}

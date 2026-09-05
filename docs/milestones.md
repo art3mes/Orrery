@@ -131,6 +131,12 @@ curve there has real curvature — which is why the same model is 25 times more
 accurate about them.
 
 
+![the inner system](images/inner-system.png)
+
+The `inner` framing, on 2026-09-03. Orbit rings are the *osculating* ellipse for
+the date, not a trace of where the planet has been; the trails behind each
+planet are that.
+
 ## What M2 measures
 
 The fixed ellipses are gone. Every body pulls on every other, the Sun included,
@@ -349,6 +355,11 @@ Planet maps are from **Solar System Scope**, CC BY 4.0.
 |:-:|:-:|:-:|
 | ![Jupiter's rings](images/rings-jupiter.png) | ![Saturn's rings](images/rings-saturn.png) | ![Uranus's rings](images/rings-uranus.png) |
 | Jupiter: four bands, faint | Saturn: A, B, C and the Cassini division | Uranus: ten hairlines, drawn at a stated minimum width |
+
+![Mars in focus mode](images/follow-mars.png)
+
+Focus mode on Mars, lit from the Sun's direction: the tilt is the IAU pole for
+the date and the face turned toward you is the one that really was.
 
 ## What M6 measures
 

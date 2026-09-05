@@ -8,7 +8,11 @@
 **Where the planets actually were, on any date from 1850 to 2050 — checked
 against NASA rather than asserted.**
 
-![Saturn, tilted and ringed for a date](docs/images/rings-saturn.png)
+![the solar system on 2026-09-06](docs/images/system-wide.png)
+
+*Real positions for 6 September 2026. Jupiter and Saturn carry their rings;
+the inner four are nested inside Jupiter's orbit at the middle. Distances
+are exact, the spheres are not, and the viewer says by how much.*
 
 ## What this is
 
@@ -45,8 +49,12 @@ from data committed to this repository.
 
 | | | |
 |:-:|:-:|:-:|
-| ![the inner system](docs/images/inner-system.png) | ![Mars](docs/images/follow-mars.png) | ![the 2027 eclipse track](docs/images/eclipse-2027-08-02.png) |
-| the inner system, real positions | focus mode, real tilt and rotation | where the 2027 shadow lands |
+| ![the inner system](docs/images/system-inner.png) | ![Saturn on its orbit](docs/images/saturn-in-orbit.png) | ![Jupiter on its orbit](docs/images/jupiter-in-orbit.png) |
+| the inner four, nested inside Saturn's orbit | Saturn, its rings, and the orbit running through it | Jupiter and its four faint rings |
+
+All three are the same scene at different camera distances — nothing is a
+separate render or a special mode. Fly in and the orbit lines thin out to stay
+markings rather than becoming tubes.
 
 ## Setup
 
@@ -133,7 +141,10 @@ orrery 2027-08-02 --at delhi
   The centre of the shadow lands at +25.0, +33.6 at 2027-08-02 10:10.
 ```
 
-Then the 3-D view opens on that date. Under a second, and nothing is
+![the path of the 2027 eclipse](docs/images/eclipse-2027-08-02.png)
+
+That last pair of lines is the shadow track above, computed rather than looked
+up. Then the 3-D view opens on that date. Under a second, and nothing is
 downloaded — the positions come from this package's own orbits.
 
 ```bash

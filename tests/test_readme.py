@@ -48,3 +48,43 @@ def test_the_readme_recipe_prints_what_the_readme_says(code, expected):
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout == expected
+
+
+# --- the figures ------------------------------------------------------------
+
+MARKDOWN = ("README.md", "docs/milestones.md", "docs/notes.md", "data/README.md")
+
+
+def _figures_referenced():
+    used = set()
+    for name in MARKDOWN:
+        text = (ROOT / name).read_text(encoding="utf-8")
+        for link in re.findall(r"!\[[^\]]*\]\(([^)]+)\)", text):
+            if not link.startswith("http"):
+                used.add((ROOT / name).parent.joinpath(link).resolve())
+    return used
+
+
+def test_every_figure_referenced_exists():
+    for path in sorted(_figures_referenced()):
+        assert path.exists(), path
+
+
+def test_no_figure_sits_in_the_repository_unused():
+    """Eleven of sixteen were orphaned once, several of them stale renders from
+    before the viewer could draw rings. An image nobody links to is either a
+    deletion someone forgot or a section someone forgot -- both worth knowing.
+    """
+    on_disk = {p.resolve() for p in (ROOT / "docs" / "images").glob("*.png")}
+    orphans = sorted(p.name for p in on_disk - _figures_referenced())
+    assert not orphans, f"unreferenced: {orphans}"
+
+
+def test_no_markdown_link_points_at_a_missing_file():
+    for name in MARKDOWN:
+        path = ROOT / name
+        text = path.read_text(encoding="utf-8")
+        for link in re.findall(r"\]\(([^)#][^)]*)\)", text):
+            if link.startswith("http"):
+                continue
+            assert (path.parent / link).exists(), f"{name} -> {link}"

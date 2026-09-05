@@ -87,7 +87,7 @@ The extras are separable, and which you need depends on what you want to do:
 python -m pytest -m "not network"
 ```
 
-375 tests, about 45 seconds. One further test diffs the element table against
+378 tests, about 45 seconds. One further test diffs the element table against
 JPL's live web page and is excluded by that marker.
 
 ### Where the textures are
@@ -448,7 +448,7 @@ scripts/
   demo_m4.py         an eclipse track drawn on the ground
   demo_m5.py         one body, close up, oriented for a date
 
-tests/               375 tests, offline, plus one network diff against JPL
+tests/               378 tests, offline, plus one network diff against JPL
 data/                fixtures, delta T, textures. See data/README.md
 docs/
   milestones.md      what each gate asks and what it measured

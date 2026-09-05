@@ -1,5 +1,9 @@
 # orrery
 
+[![tests](https://github.com/art3mes/Orrery/actions/workflows/tests.yml/badge.svg)](https://github.com/art3mes/Orrery/actions/workflows/tests.yml)
+[![python](https://img.shields.io/badge/python-3.10%20|%203.11%20|%203.12-blue)](pyproject.toml)
+[![licence](https://img.shields.io/badge/licence-MIT-green)](LICENSE)
+
 Where the planets actually were, on any date from 1850 to 2050 — checked
 against NASA rather than asserted.
 

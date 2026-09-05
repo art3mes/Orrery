@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "orrery"
-version = "0.1.0"
+version = "1.0.0"
 description = "Solar system positions you can check against NASA"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
 keywords = ["astronomy", "ephemeris", "solar-system", "eclipse", "orbital-mechanics"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
@@ -32,6 +32,9 @@ truth = [
 viz = [
     "polyscope>=2.2",
     "matplotlib>=3.7",
+    # Decodes the surface maps in data/textures. Imported inside globe.py, so
+    # the package still imports without it -- the globes just come out plain.
+    "pillow>=10.0",
 ]
 dev = [
     "pytest>=7.4",

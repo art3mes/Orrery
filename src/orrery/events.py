@@ -62,14 +62,24 @@ def _refine(x: np.ndarray, y: np.ndarray, index: int) -> tuple[float, float]:
 
     x0, x1, x2 = x[index - 1 : index + 2]
     y0, y1, y2 = y[index - 1 : index + 2]
-    denominator = (x0 - x1) * (x0 - x2) * (x1 - x2)
-    if denominator == 0:
+
+    # Fit in *u = x - x1*, not in x. The coefficients of a parabola through
+    # three points contain terms in x^2, and a Julian date is 2.46e6 while a
+    # grid step here is 1e-3 of a day: the x^2 terms agree to sixteen digits
+    # and cancel to nothing, so the linear coefficient comes out pure noise and
+    # the vertex flies off to be clamped. Symptom: an eclipse maximum that
+    # reports the right minute and 0.0% of the Sun covered. Shifting the origin
+    # to the middle sample costs one subtraction and removes the cancellation
+    # entirely -- there is no x large enough to hurt a difference of x.
+    u0 = float(x0 - x1)
+    u2 = float(x2 - x1)
+    if u0 == 0.0 or u2 == 0.0 or u0 == u2:
         return float(x1), float(y1)
 
-    a = (x2 * (y1 - y0) + x1 * (y0 - y2) + x0 * (y2 - y1)) / denominator
-    b = (
-        x2 * x2 * (y0 - y1) + x1 * x1 * (y2 - y0) + x0 * x0 * (y1 - y2)
-    ) / denominator
+    slope_back = (y0 - y1) / u0
+    slope_on = (y2 - y1) / u2
+    a = (slope_on - slope_back) / (u2 - u0)
+    b = slope_back - a * u0
     if a == 0:
         return float(x1), float(y1)
 
@@ -86,10 +96,9 @@ def _refine(x: np.ndarray, y: np.ndarray, index: int) -> tuple[float, float]:
     # bracket. On a 0.02 d grid the 2020 great conjunction refined to 24 minutes
     # *worse* than its own raw argmin. Clamped, refinement can never do worse
     # than not refining at all.
-    half = 0.5 * min(x1 - x0, x2 - x1)
-    vertex = float(np.clip(-b / (2 * a), x1 - half, x1 + half))
-    c = y1 - a * x1 * x1 - b * x1
-    return vertex, float(a * vertex * vertex + b * vertex + c)
+    half = 0.5 * min(-u0, u2)
+    step = float(np.clip(-b / (2 * a), -half, half))
+    return float(x1) + step, float(a * step * step + b * step + y1)
 
 
 def find_extrema(

@@ -120,8 +120,15 @@ def deflect(
     there, the geometry is a body behind the Sun, and nothing is visible anyway.
     """
     p = direction / norm(direction)[..., None]
-    q = target_from_sun / norm(target_from_sun)[..., None]
     e = observer_from_sun / norm(observer_from_sun)[..., None]
+
+    # Looking at the Sun itself puts the target *at* the source, and in a frame
+    # whose origin is the Sun -- ``model.ephemeris`` -- that vector is exactly
+    # zero rather than merely small. Same argument as the denominator below:
+    # divide safely rather than mask a nan afterwards. Such a ray is always
+    # occulted, so the value landed on here is never the one returned.
+    reach = norm(target_from_sun)
+    q = target_from_sun / np.where(reach > 0.0, reach, 1.0)[..., None]
 
     distance_to_sun = norm(observer_from_sun)
     scale = SUN_SCHWARZSCHILD_AU / distance_to_sun

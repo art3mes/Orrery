@@ -49,7 +49,7 @@ ellipses; it is *how wrong* the ellipses are, which is what M0 answers.
 
 ```bash
 pip install -e ".[truth,viz,dev]"
-python -m pytest                    # 333 tests, no network, ~31 s
+python -m pytest                    # 356 tests, no network, ~45 s
 python scripts/validate_m0.py       # positions
 python scripts/validate_m1.py       # the scene, checked with no window
 python scripts/validate_m2.py       # gravity  (~2.5 min; --quick halves it)
@@ -69,6 +69,140 @@ python scripts/demo_m5.py --body earth --from-sun    # one planet, close up
 
 Distances are exactly right and the spheres are a thousand times too big. That
 number is on screen next to the slider that sets it.
+
+## Using it
+
+Five questions, ten lines each. All of them run from a clean checkout with
+nothing downloaded: `ephemeris()` packs this package's own orbits into the same
+object DE440 comes out of, so `truth` is only ever needed to *check* an answer,
+never to get one.
+
+**Where is Mars tonight?**
+
+```python
+from orrery import SITES, ephemeris, jd, radec
+
+when = jd(2026, 9, 6, 21, 30)
+eph = ephemeris(when, bodies=("sun", "geocentre", "mars"))
+
+mars = eph.look("mars", when, site=SITES["greenwich"])
+ra, dec = radec(mars.apparent)
+print(f"RA {ra[0]:.4f} h   Dec {dec[0]:+.4f} deg   {mars.distance[0]:.4f} au")
+```
+
+```
+RA 7.2147 h   Dec +23.0066 deg   1.8170 au
+```
+
+That is an *apparent* place: light-time, gravitational bending, aberration, and
+an observer standing on a turning ellipsoid rather than at its centre. DE440
+puts Mars 16.2 arcsec away from there and 25 000 km further off, which is M0's
+Mars error arriving somewhere you can see it.
+
+**When is the next eclipse where I live, and how much of the Sun goes?**
+
+```python
+import numpy as np
+from orrery import Site, ephemeris, events, isoformat, jd, solar_view
+
+site = Site("Cairo", 30.044, 31.236, 23.0)
+scan = jd(2027, 1, 1) + np.arange(0.0, 365.0, 2.0 / 1440.0)   # two minutes, one year
+eph = ephemeris(scan, bodies=("sun", "geocentre", "moon"))
+
+view = solar_view(eph, scan, site=site)
+for when, covered in events.find_extrema(scan, view.obscuration, kind="max", threshold=0.0):
+    print(f"{isoformat(when)}   {covered:.2%} of the Sun covered")
+```
+
+```
+2027-02-06 17:46   27.80% of the Sun covered
+2027-08-02 09:57   94.80% of the Sun covered
+```
+
+Six seconds, and nothing was looked up: both eclipses fall out of scanning a
+year of shadow geometry for maxima. Cairo misses totality in August 2027 —
+`eclipse.shadow_landing` puts the axis 541 km south, over Luxor, and M4 gates
+that landing point to 17 km. Replace `ephemeris` with `truth.sampled_ephemeris`
+and DE440 answers 27.84% and 94.83% at the same two minutes.
+
+**How far away is Jupiter, and how old is the light?**
+
+```python
+from orrery import ephemeris, jd
+
+when = jd(2026, 9, 6, 12)
+eph = ephemeris(when, bodies=("sun", "geocentre", "jupiter"))
+
+sight = eph.look("jupiter", when)
+print(f"{sight.distance[0]:.4f} au, and the light left it "
+      f"{sight.light_time_days[0] * 1440:.1f} minutes ago")
+```
+
+```
+6.1550 au, and the light left it 51.2 minutes ago
+```
+
+That distance is the one the light actually crossed, solved by iteration rather
+than by dividing the instantaneous separation by *c*. Jupiter moved while the
+light was in transit, and so did the Earth.
+
+**When is the next full moon?**
+
+```python
+import numpy as np
+from orrery import equatorial_to_ecliptic, events, isoformat, jd, model
+
+when = jd(2026, 9, 6) + np.arange(0.0, 120.0, 0.01)
+place, _ = model.states(("geocentre", "moon"), when)
+
+sun = equatorial_to_ecliptic(-place[:, 0])
+moon = equatorial_to_ecliptic(place[:, 1] - place[:, 0])
+longitude = lambda v: np.arctan2(v[:, 1], v[:, 0])
+for t, _ in events.find_extrema(when, np.cos(longitude(moon) - longitude(sun)), kind="min"):
+    print(isoformat(t), " full moon")
+```
+
+```
+2026-09-26 16:50  full moon
+2026-10-26 04:13  full moon
+2026-11-24 14:55  full moon
+2026-12-24 01:30  full moon
+```
+
+Full moon is 180 degrees of ecliptic longitude between the Moon and the Sun, so
+the thing to search is the *cosine* of that difference rather than the
+difference itself. An angle taken modulo 360 degrees jumps once a month, a
+sign-change finder cannot tell a jump from a crossing, and the obvious version
+of this recipe cheerfully reports the new moons as well.
+
+**When is Venus furthest from the Sun in the sky?**
+
+```python
+import numpy as np
+from orrery import elongation_deg, events, isoformat, jd, position
+
+when = jd(2026, 1, 1) + np.arange(0.0, 730.0, 0.25)
+gap = elongation_deg(position("venus", when), position("embary", when))
+
+for t, angle in events.find_extrema(when, gap, kind="max", threshold=20.0):
+    print(f"{isoformat(t)}   {angle:.2f} deg from the Sun")
+```
+
+```
+2026-08-15 05:38   45.89 deg from the Sun
+2027-01-03 18:35   46.95 deg from the Sun
+```
+
+Greatest elongation, evening then morning, and the two differ by a degree
+because Venus's orbit is an ellipse and it matters where on it Venus happens to
+be. No apparent-place machinery here at all: this one is geometry straight off
+the element table.
+
+**And every one of them can be run twice.** `ephemeris()` and
+`truth.sampled_ephemeris()` hand back the same class and take the same
+arguments, so changing one line asks the identical question of JPL's orbits
+instead of these. That is not a testing convenience bolted on afterwards. It is
+the shape the whole package was built to have.
 
 ## What M0 measures
 
@@ -142,6 +276,19 @@ function on a uniform grid the extremum is always within half a step of the
 argmin — so clamping there costs nothing when the fit is good and saves it when
 it is not. Caught only because two scripts computing the same DE440 quantity
 disagreed by 28 minutes.
+
+**And then the clamp hid a real bug for six milestones.** The same parabola,
+fitted in raw Julian dates. A date is 2.46 × 10⁶ and a two-minute grid step is
+1.4 × 10⁻³, so the *x*² terms in the fitted coefficients agree to sixteen digits
+and cancel to nothing — the linear coefficient came out as pure rounding noise,
+the vertex flew off, and the clamp caught it every single time and quietly
+returned the raw argmin displaced by half a step. Nothing failed. Every gate
+passed. It surfaced only when a recipe for this README asked for the *value* at
+an extremum rather than its time, and a 95%-covered Sun reported 0.0%. Fitting
+in *x* − *x*₁ instead costs one subtraction; Mars's stationary points went from
+5.5 minutes off Skyfield to 1.1, and the 2020 conjunction moved six minutes. The
+lesson is not about floating point. It is that a safety net added for one
+failure will happily absorb a different one and report success.
 
 **Conserving energy is not the same as getting the orbit right.** The symplectic
 integrator holds energy in a band of 5.7 × 10⁻⁷ for a thousand years, which
@@ -247,7 +394,7 @@ wiring, and the gate runs with no window at all.
 |---|---|
 | Rings carry their planets | worst gap = 1.000 × the polyline's own sagitta |
 | Trails end at the planet | 3 × 10⁻¹² au, and never sampled outside 1800–2050 |
-| Jupiter–Saturn, Dec 2020 | +10.3 h vs DE440 |
+| Jupiter–Saturn, Dec 2020 | +10.4 h vs DE440 |
 | Venus transits 2004, 2012 | on the disc both times; contacts within 0.1 h |
 | Mars oppositions, 1990–2050 | 28 found, 28 matched, rms 0.4 h, worst 1.1 h |
 
@@ -257,7 +404,7 @@ model or the definition is at fault — published opposition dates use apparent
 geocentric right ascension, this uses maximum elongation, and those two differ
 by hours on their own.
 
-The conjunction's 10.3 hours is not a surprise, it is M0's prediction coming
+The conjunction's 10.4 hours is not a surprise, it is M0's prediction coming
 true. On that date Saturn sits 2.5′ from where it should, the separation curve
 at closest approach is nearly flat, and a flat minimum converts a small position
 error into a large time error. Oppositions have no such problem — the elongation
@@ -353,7 +500,7 @@ fixable without IAU 2000A's 1365 terms.
 places, while parallax itself moves Venus by up to 28″.
 
 **Retrograde**, the observation that broke the geocentric model, comes out
-within 6 minutes of Skyfield: Mars turns on 2024-12-07, backs up for 79 days,
+within 1.1 minutes of Skyfield: Mars turns on 2024-12-07, backs up for 79 days,
 and turns again on 2025-02-24.
 
 ![Mars retrograde](docs/images/mars-retrograde.png)
@@ -556,10 +703,12 @@ src/orrery/          the model. numpy only; nothing here imports Skyfield
   apparent.py        light-time, gravitational bending, aberration
   precession.py      equinox of date, nutation, sidereal time
   observer.py        WGS84, delta T, a place on the Earth and how fast it moves
+  lunar.py           the Moon: an abridged ELP-2000/82, 120 terms
   eclipse.py         shadow cones, where they land, and what they cover
   rotation.py        IAU pole and prime meridian, obliquity, sub-solar point
+  model.py           these orbits, packed as an Ephemeris. Needs nothing outside
   scene.py           orbit rings, trails, display sizes, view framings
-  globe.py           UV spheres, texture maps, coordinate -> pixel
+  globe.py           UV spheres, oblateness, rings, texture maps
   view.py            polyscope wiring, and nothing else
   truth.py           DE440 and Skyfield, cached to fixtures. The only outside world
 
@@ -570,6 +719,7 @@ scripts/
   validate_m3.py     apparent places against Skyfield, and the Venus transits
   validate_m4.py     eclipse cones, two solar and one lunar, the saros
   validate_m5.py     periods, obliquities, the analemma, the map's orientation
+  validate_m6.py     the Moon: Meeus's example, DE440, and what it costs an eclipse
   demo_m0.py         positions, perihelion, oppositions, the conjunction
   demo_m1.py         the viewer
   demo_m2.py         symplectic versus Runge-Kutta, and the missing 43 arcsec
@@ -577,7 +727,7 @@ scripts/
   demo_m4.py         an eclipse track drawn on the ground
   demo_m5.py         one body, close up, oriented for a date
 
-tests/               333 tests, offline, plus one network diff against JPL
+tests/               356 tests, offline, plus one network diff against JPL
 data/                fixtures, delta T, textures. See data/README.md
 docs/images/         the figures in this file, all reproducible by the demos
 ```
@@ -592,6 +742,13 @@ ruler.
 reason. It lets a gate ask the same question of this package and of DE440
 through identical code: if the two used different finders, a disagreement could
 not say which half was wrong.
+
+`model.py` and `truth.py` are the two ends of that idea. Both return an
+`apparent.Ephemeris`; one is built from the element table and the lunar theory,
+the other from a 32 MB JPL kernel; and every recipe, gate and demo above the
+line can be pointed at either. `import orrery` pulls in numpy and nothing else
+— Skyfield, polyscope and Pillow are all optional and all imported inside the
+functions that need them, which a test enforces in a subprocess.
 
 ## Choices worth knowing about
 
@@ -698,13 +855,19 @@ rate were fitted independently and imply periods differing by that much.
   contacts.
 - **No refraction, no rise and set times, no planetary magnitudes.** Refraction
   only matters near the horizon, and it depends on the weather.
-- **The globes are spheres, and lit from everywhere.** No oblateness (Saturn is
-  visibly flattened in reality, by 10%), no rings, no night side, no clouds
-  moving. Pluto has no map at the source used and falls back to flat colour.
+- **The globes are lit from everywhere.** No night side, no clouds moving, no
+  body casting a shadow on another. Oblateness and the ring systems of Jupiter,
+  Saturn and Uranus are drawn and gated in M5; Neptune's rings are not built.
+  Pluto has no map at the source used and falls back to flat colour.
 - **The rotation table omits its periodic terms.** Mercury, Mars, Neptune and
   the Moon have libration terms of up to 0.7 degrees that are not implemented;
   Neptune's obliquity is 0.47 degrees off because of it. The maps are 2048
   pixels wide, which is 10 arcminutes a pixel, so it does not show.
+- **`ephemeris()` puts the Sun at the origin**, not at the barycentre, which is
+  exactly what lets it need nothing external. Everything downstream works on
+  differences and does not mind, except aberration, which wants the observer's
+  *barycentric* velocity and gets its heliocentric one: up to 0.011″. The gates
+  all run on `truth.sampled_ephemeris`, which is barycentric.
 - **The first gate run needs the network** — 32 MB of DE440s, and Skyfield
   caches it under `data/`. After that the fixture in `data/fixtures/` is enough,
   and `--offline` enforces it. On a machine behind a TLS-inspecting proxy or

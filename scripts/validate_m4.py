@@ -149,15 +149,15 @@ def gate_solar(*, offline: bool) -> Check:
         index = int(np.argmin(miss))
         greatest = jd[index]
         latitude, longitude = eclipse.shadow_landing(eph, greatest)
-        longitude = (float(longitude) + 180.0) % 360.0 - 180.0
+        longitude = (longitude + 180.0) % 360.0 - 180.0
 
         view = eclipse.solar_view(eph, jd, site=published["site"])
         central = jd[view.total]
         duration = (central[-1] - central[0]) * 86400.0 if len(central) else 0.0
 
         offset = (greatest - centre) * 1440.0
-        gap = np.hypot(float(latitude) - published["latitude"],
-                       (longitude - published["longitude"]) * np.cos(np.radians(float(latitude))))
+        gap = np.hypot(latitude - published["latitude"],
+                       (longitude - published["longitude"]) * np.cos(np.radians(latitude)))
         duration_error = duration - published["duration_s"]
 
         ok = (
@@ -251,8 +251,8 @@ def gate_saros(*, offline: bool) -> Check:
         index = int(np.argmin(miss))
         latitude, longitude = eclipse.shadow_landing(eph, jd[index])
         places.append(
-            (jd[index], float(miss[index]), float(latitude),
-             (float(longitude) + 180.0) % 360.0 - 180.0)
+            (jd[index], float(miss[index]), latitude,
+             (longitude + 180.0) % 360.0 - 180.0)
         )
 
     (when_a, miss_a, lat_a, lon_a), (when_b, miss_b, lat_b, lon_b) = places

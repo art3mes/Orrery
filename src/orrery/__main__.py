@@ -49,6 +49,18 @@ def parse_date(text: str) -> float:
     return times.jd(*parts, hour, minute)
 
 
+def _one(value) -> float:
+    """A one-date answer, as a plain float.
+
+    Every number here is computed on an *array* of one date, because that is
+    what the ephemeris takes, so it comes back shaped (1,). ``float()`` on that
+    was a DeprecationWarning in numpy 1.25 and is an error from numpy 2.3 --
+    correctly, since it only reads unambiguously while the array happens to
+    have length one. Say which element out loud instead.
+    """
+    return float(np.asarray(value).reshape(-1)[0])
+
+
 def _hms(hours: float) -> str:
     h = int(hours)
     m = (hours - h) * 60.0
@@ -78,7 +90,7 @@ def _moon_elongation(jd_tdb: float) -> float:
     def longitude(v):
         return np.degrees(np.arctan2(v[:, 1], v[:, 0]))
 
-    return float((longitude(moon) - longitude(sun)) % 360.0)
+    return _one((longitude(moon) - longitude(sun)) % 360.0)
 
 
 def report(jd_tdb: float, site: observer.Site | None = None, out=sys.stdout) -> None:
@@ -108,7 +120,7 @@ def report(jd_tdb: float, site: observer.Site | None = None, out=sys.stdout) -> 
             place, _ = model.states((body,), when)
             heliocentric = f"{np.linalg.norm(place[0, 0]):9.3f}"
             angle = frames.separation_arcsec(sight.apparent, sun_direction) / 3600.0
-            elongation = f"{float(angle):7.1f}d"
+            elongation = f"{_one(angle):7.1f}d"
 
         label = "Moon" if body == "moon" else body.capitalize()
         print(f"  {label:<10}  {_hms(float(ra[0]))}   {_dms(float(dec[0]))}"
@@ -116,13 +128,13 @@ def report(jd_tdb: float, site: observer.Site | None = None, out=sys.stdout) -> 
 
     # The Moon, in the terms people actually ask about it.
     moon = eph.look("moon", when, site=site)
-    separation = float(frames.separation_arcsec(moon.apparent, sun.apparent)) / 3600.0
+    separation = _one(frames.separation_arcsec(moon.apparent, sun.apparent)) / 3600.0
     age = _moon_elongation(jd_tdb)
     lit = 0.5 * (1.0 - np.cos(np.radians(age)))
     _, _, moon_km = lunar.spherical(jd_tdb)
 
     print(f"\n  The Moon is {_phase_name(age)}, {lit:.0%} lit, "
-          f"{float(moon_km):,.0f} km away,", file=out)
+          f"{_one(moon_km):,.0f} km away,", file=out)
     print(f"  and {separation:.1f} degrees from the Sun in the sky.", file=out)
 
     # An eclipse needs those two nearly in line, which is a single comparison.
@@ -161,8 +173,8 @@ def _eclipse_today(jd_tdb: float, site: observer.Site | None, out) -> None:
     index = int(np.argmin(miss))
     if float(miss[index]) < observer.EARTH_RADIUS_KM:
         latitude, longitude = eclipse.shadow_landing(eph, scan[index])
-        east = (float(longitude) + 180.0) % 360.0 - 180.0
-        print(f"  The centre of the shadow lands at {float(latitude):+.1f}, "
+        east = (longitude + 180.0) % 360.0 - 180.0
+        print(f"  The centre of the shadow lands at {latitude:+.1f}, "
               f"{east:+.1f} at {times.isoformat(scan[index])}.", file=out)
 
 

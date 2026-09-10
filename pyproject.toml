@@ -56,3 +56,10 @@ testpaths = ["tests"]
 markers = [
     "network: test needs internet (JPL element table, DE ephemeris)",
 ]
+filterwarnings = [
+    # numpy 1.25 deprecated float() on a one-element array and 2.3 made it an
+    # error. It slipped past for four days because this machine had numpy 1.23,
+    # which does not even warn, while CI on 3.11 and 3.12 resolved numpy 2.3
+    # and went red. An error here means it fails on whatever numpy is present.
+    "error:Conversion of an array with ndim > 0:DeprecationWarning",
+]

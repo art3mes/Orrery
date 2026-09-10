@@ -183,8 +183,8 @@ def gate_eclipse_cost(*, offline: bool) -> Check:
         central = jd[view.total]
         results[label] = (
             jd[index],
-            float(latitude),
-            (float(longitude) + 180.0) % 360.0 - 180.0,
+            latitude,
+            (longitude + 180.0) % 360.0 - 180.0,
             (central[-1] - central[0]) * 86400.0 if len(central) else 0.0,
         )
 

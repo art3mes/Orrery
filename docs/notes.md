@@ -68,6 +68,19 @@ in *x* − *x*₁ instead costs one subtraction; Mars's stationary points went f
 lesson is not about floating point. It is that a safety net added for one
 failure will happily absorb a different one and report success.
 
+**Green here, red there, for four days.** Every commit after the `orrery`
+command landed failed CI on Python 3.11 and 3.12 and passed on 3.10. This
+machine runs 3.10 with numpy 1.23; CI resolves numpy 2.3 on the newer Pythons,
+and 2.3 turned `float()` on a one-element array from a deprecation into an
+error. The command computes everything on an array of one date, so it did that
+eleven times. Two gates did it too, through `eclipse.shadow_landing`, which
+returned a length-1 array for a single date and left every caller to unwrap it
+-- the actual bug, since the rest of the package gives scalars back for
+scalars. Nothing local could see it: numpy 1.23 does not even warn. It was
+reported green in this conversation while it was red on GitHub. The fix is the
+convention, applied at the source, plus a pytest filter that makes this one
+deprecation an error on any numpy, so the next one fails here first.
+
 **Conserving energy is not the same as getting the orbit right.** The symplectic
 integrator holds energy in a band of 5.7 × 10⁻⁷ for a thousand years, which
 looks like a licence to trust it. Run the Sun and Mercury alone — a two-body

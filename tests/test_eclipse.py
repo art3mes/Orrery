@@ -127,7 +127,7 @@ def test_an_axis_that_misses_the_earth_lands_nowhere():
         moon=[384_400.0, 50_000.0, 0.0],
     )
     latitude, longitude = eclipse.shadow_landing(ephemeris, JD)
-    assert np.isnan(latitude[0]) and np.isnan(longitude[0])
+    assert np.isnan(latitude) and np.isnan(longitude)
 
 
 def test_a_central_shadow_lands_on_the_surface():
@@ -137,9 +137,9 @@ def test_a_central_shadow_lands_on_the_surface():
         moon=[384_400.0, 0.0, 0.0],
     )
     latitude, longitude = eclipse.shadow_landing(ephemeris, JD)
-    assert not np.isnan(latitude[0])
-    assert -90.0 <= float(latitude[0]) <= 90.0
-    assert 0.0 <= float(longitude[0]) < 360.0
+    assert not np.isnan(latitude)
+    assert -90.0 <= latitude <= 90.0
+    assert 0.0 <= longitude < 360.0
 
 
 def test_the_landing_uses_the_ellipsoid_not_a_sphere():
@@ -157,8 +157,27 @@ def test_the_landing_uses_the_ellipsoid_not_a_sphere():
         moon=[384_400.0, 0.0, 4_000.0],
     )
     latitude, _ = eclipse.shadow_landing(ephemeris, JD)
-    assert not np.isnan(latitude[0])
-    assert abs(float(latitude[0])) > 20.0  # well off the equator, where it matters
+    assert not np.isnan(latitude)
+    assert abs(latitude) > 20.0  # well off the equator, where it matters
+
+
+def test_the_shape_of_the_answer_follows_the_shape_of_the_date():
+    """Scalar in, scalar out; array in, array out -- as everywhere else here.
+
+    It used to return a length-1 array for a single date, so every caller wrote
+    ``float()`` on it. numpy 1.25 deprecated that and 2.3 made it an error, and
+    two gates broke on Python 3.12 while passing on 3.10.
+    """
+    ephemeris = fixed_ephemeris(
+        sun=[1.496e8, 0.0, 0.0],
+        geocentre=[0.0, 0.0, 0.0],
+        moon=[384_400.0, 0.0, 0.0],
+    )
+    latitude, longitude = eclipse.shadow_landing(ephemeris, JD)
+    assert isinstance(latitude, float) and isinstance(longitude, float)
+
+    latitudes, longitudes = eclipse.shadow_landing(ephemeris, np.array([JD, JD + 0.01]))
+    assert latitudes.shape == (2,) and longitudes.shape == (2,)
 
 
 # --- the lunar shadow -------------------------------------------------------

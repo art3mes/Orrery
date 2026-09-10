@@ -200,14 +200,20 @@ def shadow_axis(ephemeris, jd):
 def shadow_landing(ephemeris, jd):
     """Latitude and east longitude where the shadow axis meets the Earth.
 
-    NaN where the axis misses. Solved on the ellipsoid, not a sphere: the
-    flattening moves the landing point by up to a fifth of a degree, which is
-    twenty kilometres of a track a hundred kilometres wide.
+    NaN where the axis misses. Scalar in, scalar out -- the convention the rest
+    of this package follows, and worth stating because it used to return a
+    length-1 array for a single date and left every caller writing ``float()``
+    on it. numpy made that an error in 2.3, and it broke two gates.
+
+    Solved on the ellipsoid, not a sphere: the flattening moves the landing
+    point by up to a fifth of a degree, which is twenty kilometres of a track a
+    hundred kilometres wide.
 
     The trick is to squash the problem rather than the answer -- scale the polar
     axis so the Earth becomes a unit sphere, intersect, then unscale.
     """
-    jd = np.atleast_1d(np.asarray(jd, dtype=float))
+    asked = np.asarray(jd, dtype=float)
+    jd = np.atleast_1d(asked)
     _, direction, moon = shadow_axis(ephemeris, jd)
 
     latitude = np.full(jd.shape, np.nan)
@@ -234,6 +240,8 @@ def shadow_landing(ephemeris, jd):
         hit = (start_s + k * step_s) / squash
         latitude[i], longitude[i] = surface_point("embary", when, frame @ hit)
 
+    if asked.ndim == 0:
+        return float(latitude[0]), float(longitude[0])
     return latitude, longitude
 
 

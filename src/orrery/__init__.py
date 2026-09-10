@@ -92,7 +92,7 @@ from .observer import SITES, Site, delta_t_seconds
 from .rotation import body_to_icrf, obliquity_degrees, sub_solar_point
 from .times import calendar, isoformat, jd
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 __all__ = [
     # the modules, which are the real surface

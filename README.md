@@ -362,6 +362,9 @@ python scripts/demo_m4.py    # an eclipse track drawn on the ground
 python scripts/demo_m5.py --body saturn    # one body, close up, correctly tilted
 ```
 
+`scripts/render_figures.py` rebuilds the 3-D figures in `docs/images`. A window
+opens while it runs.
+
 ## What M0 to M6 mean
 
 The project was built in seven steps and the scripts are named after them. It is
@@ -375,7 +378,7 @@ to pass before it counted as done:
 | **M2** | Real gravity: every body pulls on every other | Conservation over 1000 yr; 50-yr drift; Mercury's perihelion | 3/3 |
 | **M3** | The view from Earth: light-time, aberration, parallax | Apparent places vs Skyfield; transits timed from real observatories | 4/4 |
 | **M4** | Eclipses | Two solar and one lunar against *observed* circumstances | 4/4 |
-| **M5** | Surface maps, axial tilt, rotation, rings, oblateness | Published obliquities and periods; the analemma; ring radii | 5/5 |
+| **M5** | Surface maps, axial tilt, rotation, rings, oblateness | Published obliquities and periods; the analemma; ring radii; a test map read back from the screen | 5/5 |
 | **M6** | The Moon, computed here rather than borrowed from JPL | Meeus's worked example; DE440 over a century; the cost to an eclipse | 4/4 |
 
 **[docs/milestones.md](docs/milestones.md)** has the full result tables, the
@@ -409,71 +412,6 @@ The short version. The full list, with measured costs, is in
   night side on the globes.
 - **Nutation is four terms**, which puts a floor of about half an arcsecond
   under anything quoted in coordinates of date. IAU 2000A would remove it.
-
-## Layout
-
-```
-src/orrery/          the model. numpy only; nothing here imports Skyfield
-  __main__.py        the `orrery` command: a date in, a report and a window out
-  times.py           calendar <-> Julian date; J2000 and the century
-  elements.py        the JPL element table, verbatim, plus drift to any epoch
-  kepler.py          Kepler's equation; elements <-> position, velocity, orbit ring
-  frames.py          ecliptic <-> equatorial, angular separation, RA/Dec
-  events.py          extrema and crossings: conjunctions, oppositions, transits
-  nbody.py           mutual gravity, the 1PN term, symplectic integrators
-  apparent.py        light-time, gravitational bending, aberration
-  precession.py      equinox of date, nutation, sidereal time
-  observer.py        WGS84, delta T, a place on the Earth and how fast it moves
-  lunar.py           the Moon: an abridged ELP-2000/82, 120 terms
-  eclipse.py         shadow cones, where they land, and what they cover
-  rotation.py        IAU pole and prime meridian, obliquity, sub-solar point
-  model.py           these orbits, packed as an Ephemeris. Needs nothing outside
-  scene.py           orbit rings, trails, display sizes, view framings
-  globe.py           UV spheres, oblateness, rings, texture maps
-  view.py            polyscope wiring, and nothing else
-  truth.py           DE440 and Skyfield, cached to fixtures. The only outside world
-
-scripts/
-  validate_m0.py     positions against DE440
-  validate_m1.py     the scene, and events against DE440. No window needed
-  validate_m2.py     conservation, drift, and Mercury's perihelion
-  validate_m3.py     apparent places against Skyfield, and the Venus transits
-  validate_m4.py     eclipse cones, two solar and one lunar, the saros
-  validate_m5.py     periods, obliquities, the analemma, the map's orientation
-  validate_m6.py     the Moon: Meeus's example, DE440, and what it costs an eclipse
-  demo_m0.py         positions, perihelion, oppositions, the conjunction
-  demo_m1.py         the viewer
-  demo_m2.py         symplectic versus Runge-Kutta, and the missing 43 arcsec
-  demo_m3.py         how old the view is, and Mars going backwards
-  demo_m4.py         an eclipse track drawn on the ground
-  demo_m5.py         one body, close up, oriented for a date
-  render_figures.py  rebuilds the 3-D figures in docs/images
-
-tests/               382 tests, offline, plus one network diff against JPL
-data/                fixtures, delta T, textures. See data/README.md
-docs/
-  milestones.md      what each gate asks and what it measured
-  notes.md           how it works, what went wrong, and what it does not do
-  images/            every figure; render_figures.py and the demos rebuild them
-```
-
-The dependency arrow runs one way. `src/orrery` is numpy and nothing else,
-except `truth.py`, whose entire job is to be the outside world: it is the only
-module that knows Skyfield exists, and no other module imports it. That is what
-makes the gates mean something — the thing being measured cannot reach the
-ruler.
-
-`events.py` works on arrays of positions and never on body names, for the same
-reason. It lets a gate ask the same question of this package and of DE440
-through identical code: if the two used different finders, a disagreement could
-not say which half was wrong.
-
-`model.py` and `truth.py` are the two ends of that idea. Both return an
-`apparent.Ephemeris`; one is built from the element table and the lunar theory,
-the other from a 32 MB JPL kernel; and every recipe, gate and demo above the
-line can be pointed at either. `import orrery` pulls in numpy and nothing else
-— Skyfield, polyscope and Pillow are all optional and all imported inside the
-functions that need them, which a test enforces in a subprocess.
 
 ## Licence
 

@@ -68,6 +68,22 @@ in *x* − *x*₁ instead costs one subtraction; Mars's stationary points went f
 lesson is not about floating point. It is that a safety net added for one
 failure will happily absorb a different one and report success.
 
+**The planets were upside down and every gate passed.** From the day textures
+went in, the viewer drew every map flipped north to south. Africa was a mirror
+image and Jupiter's Great Red Spot sat in the wrong hemisphere. The M5 gate
+reported 10/10 known coastlines, and that was true of what it tested:
+`globe.sample()`, a function the renderer never calls. Its docstring said
+anything agreeing with it agreed with what gets drawn, and that was wrong.
+Polyscope puts row 0 of an image at the top of OpenGL's texture space, `v = 1`,
+unless told otherwise, and `uv_sphere` puts the north pole at `v = 0`. Longitude
+stayed right, so the Sun still stood over Africa at noon, which was the check
+this project trusted most. It was caught by looking at the picture while making
+slides for a post. The fix is one argument. The gate now draws a four-colour map
+and reads back which colour landed in which corner of the screen, and that check
+fails on the old behaviour. It needs a display, so it runs on a desktop and
+skips in CI; a smaller test that does run in CI checks the argument is passed.
+Positions and orbits were never affected, since the bug was only in the paint.
+
 **Green here, red there, for four days.** Every commit after the `orrery`
 command landed failed CI on Python 3.11 and 3.12 and passed on 3.10. This
 machine runs 3.10 with numpy 1.23; CI resolves numpy 2.3 on the newer Pythons,

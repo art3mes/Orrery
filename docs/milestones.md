@@ -304,17 +304,19 @@ That is the Earth seen from the Sun at 12:00 UT. Africa faces us because the
 sub-solar longitude is 0.2 degrees east — and that is the check, not the
 picture. If anything in the chain from the rotation elements through the
 body-fixed frame to the texture coordinates were wrong, a different ocean would
-be lit.
+be lit. It can't see a map that is upside down, though, because every longitude
+stays right. The drawn test in the table below covers that.
 
-None of M5's gates look at the rendering. Every failure mode still looks like a
-planet.
+M5's gates mostly check the numbers the rendering is built from, because every
+failure mode still looks like a planet. One also reads pixels back from the
+renderer, for the reason in [the notes](notes.md).
 
 | gate | result |
 |---|---|
 | Rotation periods, from the tabulated W rates | worst 5 × 10⁻⁶ of the period, across 9 bodies |
 | Obliquities, from the poles and M0's orbits | within 0.01° for 8 of 9 |
 | The analemma | ±23.44° latitude, 30.6 min of equation of time, all four season dates exact |
-| The map's orientation | 10/10 known coastlines land or sea as they should |
+| The map's orientation | 10/10 known coastlines land or sea as they should; 4/4 corners of a test map drawn in the right place |
 | Shape | flattening derived from published radii; ring edges are published radii |
 
 The analemma is the one that matters. The rotation table contains a pole and an

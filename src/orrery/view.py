@@ -12,6 +12,12 @@ Run it with ``scripts/demo_m1.py``.
 
 from __future__ import annotations
 
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import numpy as np
 
 from . import globe, scene
@@ -30,6 +36,104 @@ from .times import isoformat, jd as julian_date
 EPOCH_JD = julian_date(1850, 1, 1)
 DAY_MIN = 0.0
 DAY_MAX = VALID_JD[1] - EPOCH_JD
+
+
+# A test map with a different colour in each corner, as an observer sees it.
+_QUADRANT_COLOURS = {
+    "north-west": (0.0, 1.0, 0.0),
+    "north-east": (1.0, 0.0, 0.0),
+    "south-west": (1.0, 1.0, 0.0),
+    "south-east": (0.0, 0.0, 1.0),
+}
+
+# Run in a child process because a renderer can only start once, and exit 3
+# means "nothing can be drawn here", which is not the same as a failure.
+_PROBE = """
+import json, sys
+try:
+    import polyscope as ps
+    ps.init()
+except Exception:
+    sys.exit(3)
+from orrery import view
+print(json.dumps(view.draw_map_quadrants()))
+"""
+
+
+def draw_map_quadrants() -> dict[str, str]:
+    """Which corner of a test map landed in which corner of the screen.
+
+    Paints four colours on the Earth through the same calls the viewer uses,
+    looks at latitude 0, longitude 0 from outside with north up, and reads the
+    pixels back. Needs polyscope already initialised, and a real display.
+    """
+    import polyscope as ps
+
+    height, width = 64, 128
+    colours = np.array(list(_QUADRANT_COLOURS.values()))
+    pixels = np.empty((height, width, 3))
+    pixels[: height // 2, : width // 2] = colours[0]
+    pixels[: height // 2, width // 2 :] = colours[1]
+    pixels[height // 2 :, : width // 2] = colours[2]
+    pixels[height // 2 :, width // 2 :] = colours[3]
+
+    ps.set_window_size(640, 640)
+    ps.set_ground_plane_mode("none")
+    ps.set_background_color((0.0, 0.0, 0.0))
+    ps.set_navigation_style("free")
+    ps.set_bounding_box((-1.6, -1.6, -1.6), (1.6, 1.6, 1.6))
+
+    vertices, faces, uv = globe.uv_sphere(48, 96)
+    mesh = ps.register_surface_mesh("probe", vertices, faces, smooth_shade=True)
+    mesh.set_material("flat")
+    globe.paint(mesh, uv, pixels)
+
+    matrix = globe.orientation("embary", julian_date(2026, 9, 3), 1.0, np.zeros(3))
+    mesh.set_transform(matrix)
+    prime_meridian = matrix[:3, 0] / np.linalg.norm(matrix[:3, 0])
+    north = matrix[:3, 2] / np.linalg.norm(matrix[:3, 2])
+    ps.look_at_dir(tuple(3.2 * prime_meridian), (0.0, 0.0, 0.0), tuple(north))
+
+    ps.frame_tick()
+    image = ps.screenshot_to_buffer(transparent_bg=False)[..., :3] / 255.0
+
+    # Find the disc rather than assume where it is.
+    lit = np.argwhere(image.sum(axis=-1) > 0.2)
+    top, left = lit.min(axis=0)
+    bottom, right = lit.max(axis=0)
+    rows = {"north": top + 0.3 * (bottom - top), "south": top + 0.7 * (bottom - top)}
+    columns = {"west": left + 0.3 * (right - left), "east": left + 0.7 * (right - left)}
+
+    names = tuple(_QUADRANT_COLOURS)
+    seen = {}
+    for north_south, row in rows.items():
+        for east_west, column in columns.items():
+            colour = image[int(row), int(column)]
+            nearest = int(np.argmin(np.linalg.norm(colours - colour, axis=-1)))
+            seen[f"{north_south}-{east_west}"] = names[nearest]
+    return seen
+
+
+def rendered_map_quadrants() -> dict[str, str] | None:
+    """:func:`draw_map_quadrants` in its own process. ``None`` if nothing can draw.
+
+    The right answer has every corner mapped to itself. A failure inside the
+    probe raises rather than returning ``None``: a check that quietly skips
+    when it breaks is how the upside-down maps got through in the first place.
+    """
+    source = str(Path(__file__).resolve().parents[1])
+    result = subprocess.run(
+        [sys.executable, "-c", _PROBE],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env={**os.environ, "PYTHONPATH": source},
+    )
+    if result.returncode == 3:
+        return None
+    if result.returncode != 0:
+        raise RuntimeError("the map probe failed: " + result.stderr)
+    return json.loads(result.stdout.strip().splitlines()[-1])
 
 
 def day_to_jd(day: float) -> float:
@@ -117,11 +221,7 @@ class Orrery:
             if self.textures:
                 pixels = globe.load_texture(body)
                 if pixels is not None:
-                    mesh.add_parameterization_quantity("uv", uv, enabled=False)
-                    mesh.add_color_quantity(
-                        "map", pixels, defined_on="texture", param_name="uv",
-                        enabled=True,
-                    )
+                    globe.paint(mesh, uv, pixels)
             return mesh
 
         self._sun = sphere("Sun", "sun")

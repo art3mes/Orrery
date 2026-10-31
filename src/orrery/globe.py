@@ -160,9 +160,9 @@ def uv_sphere(rows: int = 64, columns: int = 128):
     different texture coordinates, or the last column of the map gets stretched
     all the way back round the planet.
 
-    ``v`` runs 0 at the north pole to 1 at the south, matching the upper-left
-    origin of an image file, so an equirectangular map lands the right way up
-    without a flip anywhere.
+    ``v`` runs 0 at the north pole to 1 at the south, so it counts down the rows
+    of an image file. OpenGL counts up them from the bottom, which is why a map
+    has to go onto this mesh through :func:`paint`.
 
     Longitude starts at **-180**, not at zero. An equirectangular map puts the
     prime meridian down the *middle* of the image, so u = 0.5 is longitude 0 and
@@ -460,8 +460,9 @@ def sample(pixels: np.ndarray, latitude, longitude) -> np.ndarray:
     """Colour of an equirectangular map at a planetocentric position.
 
     Longitude in degrees east, latitude in degrees north. The inverse of the
-    mapping :func:`uv_sphere` builds, so anything that agrees with this agrees
-    with what gets drawn.
+    mapping :func:`uv_sphere` builds. It says nothing about what the renderer
+    then does with those coordinates: :func:`paint` handles that, and
+    ``view.rendered_map_quadrants`` measures it.
     """
     pixels = np.asarray(pixels)
     height, width = pixels.shape[:2]
@@ -470,6 +471,25 @@ def sample(pixels: np.ndarray, latitude, longitude) -> np.ndarray:
     column = np.clip((u * width).astype(int), 0, width - 1)
     row = np.clip((v * height).astype(int), 0, height - 1)
     return pixels[row, column]
+
+
+def paint(mesh, uv: np.ndarray, pixels: np.ndarray) -> None:
+    """Put an equirectangular map on a :func:`uv_sphere` mesh, north side up.
+
+    The one place a map crosses into polyscope. ``image_origin`` names which
+    corner of the array sits at ``v = 0``, and :func:`uv_sphere` puts row 0, the
+    north pole, at ``v = 0``. So row 0 has to be declared ``lower_left`` even
+    though it is the top of the picture.
+
+    Polyscope's default, ``upper_left``, turns every planet upside down. That
+    is a mirror image rather than a rotation, so no camera angle can undo it,
+    and every longitude stays right, so the Sun still sits over Africa at noon.
+    """
+    mesh.add_parameterization_quantity("uv", uv, enabled=False)
+    mesh.add_color_quantity(
+        "map", pixels, defined_on="texture", param_name="uv",
+        image_origin="lower_left", enabled=True,
+    )
 
 
 def looks_like_water(colour: np.ndarray, margin: float = 0.08) -> np.ndarray:

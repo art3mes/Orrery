@@ -6,9 +6,10 @@ by the wrong 23 degrees, spinning backwards, or with the map upside down. None
 of that shows up as an error, only as a picture that is quietly of somewhere
 else.
 
-So none of these gates look at the rendering. They check the numbers the
-rendering is built from, against quantities published independently of the
-table they came from.
+So these gates check the numbers the rendering is built from, against
+quantities published independently of the table they came from. One also reads
+pixels back from the renderer, because the numbers can all be right and the
+picture still wrong: every map was upside down while all of this passed.
 
 1. **Rotation periods**, derived from the tabulated W rates, against the
    sidereal periods in every reference.
@@ -20,7 +21,9 @@ table they came from.
    equinoxes have to land on the right days. Nothing in the rotation table knows
    any of that.
 4. **The map is on the right way round.** Sample the Earth's texture where the
-   mesh says a coordinate is, and check ocean is ocean.
+   mesh says a coordinate is, and check ocean is ocean. Then draw a four-colour
+   map and read back which colour landed in which corner of the screen. That
+   part needs a display, and is skipped without one.
 5. **Shape.** Flattening derived from the published radii, and Saturn's rings
    where the geometry says they go.
 
@@ -41,7 +44,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from orrery import frames, globe, kepler, observer, rotation, times  # noqa: E402
+from orrery import frames, globe, kepler, observer, rotation, times, view  # noqa: E402
 
 # Sidereal rotation periods, days. Negative where the body turns backwards.
 PUBLISHED_PERIOD = {
@@ -241,10 +244,26 @@ def gate_map(*, offline: bool) -> Check:
         and faces.max() == len(vertices) - 1
     )
 
+    quadrants = view.rendered_map_quadrants()
+    if quadrants is None:
+        lines.append("  (nothing can draw here; skipping the rendered check)")
+        drawn_ok = True
+    else:
+        misplaced = [corner for corner, seen in quadrants.items() if corner != seen]
+        drawn_ok = not misplaced
+        lines.append(
+            f"  drawn: {len(quadrants) - len(misplaced)}/{len(quadrants)} corners of"
+            f" a test map landed where they belong"
+        )
+        if misplaced:
+            lines.append(f"  wrong: {', '.join(misplaced)}")
+
     pixels = globe.load_texture("embary", download=not offline)
     if pixels is None:
         lines.append("  (no Earth map cached; skipping the geography check)")
-        return Check("the mesh, and which way round the map is", mesh_ok, lines)
+        return Check(
+            "the mesh, and which way round the map is", mesh_ok and drawn_ok, lines
+        )
 
     height, width = pixels.shape[:2]
     lines.append(f"  map: {width}x{height}, aspect {width / height:.2f}")
@@ -268,7 +287,7 @@ def gate_map(*, offline: bool) -> Check:
     ]
     return Check(
         "the mesh, and which way round the map is",
-        mesh_ok and not wrong and abs(width / height - 2.0) < 1e-9,
+        mesh_ok and drawn_ok and not wrong and abs(width / height - 2.0) < 1e-9,
         lines,
     )
 

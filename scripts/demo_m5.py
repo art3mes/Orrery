@@ -87,10 +87,7 @@ def main() -> int:
 
     pixels = globe.load_texture(body)
     if pixels is not None:
-        mesh.add_parameterization_quantity("uv", uv, enabled=False)
-        mesh.add_color_quantity(
-            "map", pixels, defined_on="texture", param_name="uv", enabled=True
-        )
+        globe.paint(mesh, uv, pixels)
     else:
         print(f"  (no map for {body}; showing flat colour)")
 

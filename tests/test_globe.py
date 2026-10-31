@@ -4,6 +4,8 @@ No renderer here either. Everything the viewer draws a planet with is built by
 ``globe.py`` as plain arrays, and checked as plain arrays.
 """
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -293,6 +295,38 @@ def test_sampling_matches_the_mesh_convention():
 
     assert globe.sample(pixels, 0.0, 0.0) == pytest.approx([1.0, 0.0, 0.0])
     assert globe.sample(pixels, 90.0, 123.0) == pytest.approx([0.0, 1.0, 0.0])
+
+
+class _Mesh:
+    """Records what polyscope would have been told."""
+
+    def add_parameterization_quantity(self, name, values, **kwargs):
+        self.parameterization = name
+
+    def add_color_quantity(self, name, values, **kwargs):
+        self.colour = kwargs
+
+
+def test_the_renderer_is_told_where_row_zero_of_the_map_sits():
+    """Row 0 is the north pole and the mesh puts the north pole at v = 0.
+
+    Polyscope's default puts row 0 at v = 1, which draws every planet upside
+    down. ``tests/test_render.py`` checks the pixels; this one runs anywhere.
+    """
+    mesh = _Mesh()
+    _, _, uv = globe.uv_sphere(4, 8)
+    globe.paint(mesh, uv, np.zeros((4, 8, 3)))
+    assert mesh.colour["image_origin"] == "lower_left"
+    assert mesh.colour["defined_on"] == "texture"
+    assert mesh.colour["param_name"] == mesh.parameterization
+
+
+def test_every_map_goes_through_paint():
+    """A second call site is a second chance to forget ``image_origin``."""
+    root = Path(__file__).resolve().parents[1]
+    for path in [*(root / "src/orrery").glob("*.py"), *(root / "scripts").glob("*.py")]:
+        if path.name != "globe.py":
+            assert "add_parameterization_quantity" not in path.read_text(encoding="utf-8"), path
 
 
 def test_sampling_wraps_in_longitude():
